@@ -1,0 +1,2788 @@
+---
+title: "Predicting Risk of Self-Harm and Victimisation Following TBI: R code"
+subtitle: "For this project, I utilised Cox regression to investigate the association between paediatric traumatic brain injury (TBI) and subsequent risk of self-harm and violent victimisation, and assess how sociodemographic and clinical factors modify this association. This document outlines the key steps in the analyses and has been prepared in accordance with [SAIL Databank's](https://saildatabank.com) output review policy. <br>
+
+I would like to acknowledge the use of code from Plana-Ripoll and colleagues ([available here](https://plana-ripoll.github.io/NB-COMO/)) that was used guide data cleaning and preparation for the time-to-event analysis.
+"
+
+format:
+  lumo-html: 
+    #logo:  #optional: add your logo to the doc header
+    primary-color: "#b5cef7"
+    github-repo: "https://github.com/mayaogonah" 
+    self-contained: true
+    is-particlejs-enabled: true  # optional: display interactive particles in the doc header
+    #bg-image:  # optional: add a background image
+    code-fold: show
+
+execute:
+  eval: false
+  echo: true
+author: Maya Ogonah, University of Oxford
+date: today
+---
+
+# Load Packages
+
+```{r}
+# packages installed:
+#install.packages("biostat3")
+#install.packages("RODBC")
+#install.packages("dplyr")
+#install.packages("tidyr")
+#install.packages("lubridate")
+#install.packages("tidyverse")
+#install.packages("ggplot2")
+#install.packages("hrbrthemes")
+#install.packages("shiny")
+#install.packages("htmlwidgets")
+#install.packages("devtools")
+#install.packages("car")
+#install.packages("pandoc")
+#install.packages("modelsummary")
+#install.packages("cowplot")
+#install.packages(c("systemfonts", "gdtools"))
+#install.packages("flextable", type = "binary")
+#install.packages("survival")
+#install.packages("xfun")
+#install.packages("stringr")
+#install.packages("survminer")
+#install.packages("scales")
+#install.packages("geepack")
+#install.packages("reshape2")
+#install.packages("MetBrewer")
+#install.packages ("broom")
+#installing the SAILDBUtils Library
+devtools::install_git(
+  "https://gitlab.sail.ukserp.ac.uk/SAIL/0612/sail-db-utils.git",
+  git="external",
+  subdir="0612 - SAIL DB Utils/SAILDBUtils"
+)
+
+# load packages 
+library(biostat3)
+library(RODBC)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(tidyverse)
+library(survival)
+library(SAILDBUtils)
+library(ggplot2)
+library(hrbrthemes)
+library(shiny)
+library(htmlwidgets)
+library(devtools)
+library(car)
+library(modelsummary)
+library(cowplot)
+library(pandoc)
+library(flextable)
+library(survival)
+library(survminer)
+library(SAILDBUtils) # this is a package specific to SAIL Databank
+library(stringr)
+library(ggplot2)
+library(scales)
+library(geepack)
+library(MetBrewer)
+library(broom)
+library(reshape2)
+pacman::p_load(rms)
+
+# connecting to the SAIL gateway 
+# login to DB2 
+# test connection by loading the linked file made in SQL
+```
+
+# Data Wrangling
+
+Load the linked file created using SQL
+
+```{r}
+# load the linked file ...
+
+# convert characters to dates
+str(cohort)
+cohort$FIRST_START_DATE <- ymd(cohort$FIRST_START_DATE)
+cohort$LAST_END_DATE <- ymd(cohort$LAST_END_DATE)
+
+data <- cohort %>%
+  dplyr::select(-starts_with("PEDW"), -contains("EDDS"), -starts_with("WLGP"), -starts_with("ADDE"), -contains("GP"), -contains("IP"), -CINW_CPR, -CRCS_CPR, PSYCH_EDDS_DT, PSYCH_EDDS_FLAG, NEURO_EDDS_FLAG, NEURO_EDDS_DT)
+
+head(data)
+
+colnames(data) <- c("alf", "start_date", "end_date", "person_time_days", "wob", "dod", "sex", "mtbi_flag", "mtbi_date", "modsevtbi_flag", "modsevtbi_date", "tbi_unspecified_flag", "tbi_unspecified_date", "tbi_life", "tbi_date", "age_at_tbi", "suicidality_life", "suicidality_date", "pretbi_suicidality", "victimisation_life", "victimisation_date", "pretbi_victimisation", "sud_life", "sud_date", "pretbi_sud", "smi_life", "smi_date", "depression_life", "depression_date", "anxiety_life", "anxiety_date", "psychiatric_life", "psychiatric_date", "pretbi_psychiatric", "adhd_life", "adhd_date", "pretbi_adhd", "autism_life", "autism_date", "pretbi_autism", "conduct_disorder_life", "conduct_disorder_date", "pretbi_conduct_disorder", "learning_difficulties_life", "learning_difficulties_date", "pretbi_learning_difficulties", "epilepsy_life", "epilepsy_date", "cerebral_palsy_life", "cerebral_palsy_date", "migraine_life", "migraine_date", "neurological_life", "neurological_date", "pretbi_neurological", "deprivation", "child_maltreatment_flag", "looked_after_life", "looked_after_date", "pretbi_looked_after", "ed_psych_date", "ed_psych_life", "ed_neuro_life", "ed_neuro_date")
+
+
+data <- data %>%
+  mutate(pretbi_neurodevelopmental = ifelse(pretbi_autism == 1 | pretbi_adhd == 1, 1, 0 )) %>%
+  mutate(neurodevelopmental_life = ifelse(autism_life == 1 | adhd_life == 1, 1, 0 ))
+
+# individuals with TBI (all mod-sev) after the end of study 
+right_cens <- data %>%
+  filter(tbi_date > end_date)
+
+data <- data %>%
+  mutate(modsevtbi_date = replace(modsevtbi_date, modsevtbi_date > end_date, as.Date(NA)))
+
+data <- data %>%
+  mutate(modsevtbi_flag = ifelse(is.na(modsevtbi_date), 0, 1))
+
+data <- data %>%
+  mutate(tbi_life = ifelse(mtbi_flag == 0 & modsevtbi_flag == 0 & tbi_unspecified_flag == 0, 0, 1))
+
+data <- data %>%
+  mutate(tbi_date = replace(tbi_date, tbi_life == 0, as.Date(NA)))
+
+# some individuals have a mild/moderate-severe/unspecified TBI date however have been missed from the flag 
+data <- data %>%
+  mutate(tbi_date = case_when(
+    !is.na(mtbi_date) ~ mtbi_date, 
+    !is.na(modsevtbi_date) ~ modsevtbi_date,
+    !is.na(tbi_unspecified_date) ~ tbi_unspecified_date
+  )) %>%
+  mutate(tbi_life = ifelse(!is.na(tbi_date), 1, 0))
+
+# a few individuals where the later tbi date was chosen as first TBI
+
+# calculate age at TBI injury (and ensure age is numeric)
+data$age_at_tbi <- decimal_date(data$tbi_date) - decimal_date(data$wob)
+data$age_at_tbi <- as.numeric(data$age_at_tbi)
+
+# some individuals marked as "TBI" even though the event occurred at over 25y
+over25_TBI <- data %>%
+  filter(age_at_tbi >= 25 & !is.na(tbi_date)) %>%
+  dplyr::select("alf", "wob", "age_at_tbi", "tbi_life", "tbi_date", "mtbi_flag", "mtbi_date", "modsevtbi_flag", "modsevtbi_date", "tbi_unspecified_flag", "tbi_unspecified_date")
+
+# individuals with a TBI at over 25 labelled as 'TBI', recode as 'No TBI
+
+# recode TBI_life to 0
+data <- data %>%
+  mutate(tbi_life = ifelse(tbi_life == 1 & age_at_tbi > 25, 0, tbi_life))
+
+# recode TBI date to NA
+data <- data %>%
+  mutate(tbi_date = case_when(
+    tbi_life == 0 ~ as.Date(NA),
+    tbi_life == 1 ~ tbi_date
+  ))
+
+# recode age at TBI to NA
+data <- data %>%
+  mutate(age_at_tbi = ifelse(tbi_life == 1 & !is.na(age_at_tbi), NA_real_, age_at_tbi))
+
+# create a column for diagnosis (TBI / No TBI) and TBI severity
+data <- data %>%
+  dplyr::mutate(diagnosis = ifelse(tbi_life == 1, 'tbi', 'no tbi'),
+                tbi_severity = case_when(
+                  (tbi_date == mtbi_date) ~ "probable mild", 
+                  (tbi_date == modsevtbi_date) ~ "probable moderate-severe",
+                  (tbi_date == tbi_unspecified_date) ~ "probable mild" )
+  )
+
+# recoding severity to compare only those with mild to moderate (excluding unspecified)
+data <- data %>%
+  mutate(tbi_severity_binary = case_when(
+    tbi_severity == "probable mild" ~ 0,
+    tbi_severity == "probable moderate-severe" ~ 1
+  ))
+
+# recode sex, and create variables for variables used for analysis
+data <- data %>%
+  mutate(across(sex, as.numeric)) %>%
+  mutate(sex = replace(sex, sex ==1, 0)) %>%
+  mutate(sex = replace(sex, sex ==2, 1))
+
+# flip the coding of deprivation so high deprivation is 'baseline'. A high HR would indicate that high deprivation increases the risk
+data$deprivation <-  car::recode(data$deprivation, "5=1; 4=2; 3=3; 2=4; 1=5")
+```
+
+## Specifying Follow-up
+
+### Left Truncation
+
+```{r}
+# follow-up starts on date of first TBI + 1 (first_tbi_date) 
+# for controls follow up starts on entry into the study + 1 (start_date) ###
+
+data <- data %>%
+  mutate(entry_date = case_when(
+    (tbi_life == 0) ~ start_date + days(1),
+    (tbi_life == 1) ~ tbi_date + days(1)
+  ))
+
+data$entry_dd <- decimal_date(data$entry_date) # create decimal date for day of entry
+data$wob_dd <- decimal_date(data$wob) # create decimal date for week of birth
+data$age_at_entry <- data$entry_dd - data$wob_dd # create age at entry (decimal date)
+summary(data$entry_date)
+```
+
+### Restrict to those Under 25y at Baseline
+
+```{r}
+data_25y <- data %>%
+  filter(age_at_entry < 25)
+nrow(data_25y)
+
+tbi25y <- data %>%
+  filter(age_at_entry >= 25 & tbi_life == 1)
+```
+
+### Remove those with Missing Data
+
+```{r}
+# check missing and incorrectly coded data
+columns_to_check <- c("alf", "start_date", "end_date", "wob", "sex", "deprivation")
+rows_with_missing_data <- data_25y[apply(is.na(data_25y[, columns_to_check]), 1, any), ]
+
+rows_with_missing_data <- rows_with_missing_data %>%
+  dplyr::select("alf", "start_date", "end_date", "wob", "sex", "deprivation", "person_time_days")
+
+## individuals with missing data for ALF_PE, start and end dates (for study period), time-person-days, WOB, and deprivation(WIMD)
+
+data_25y <- anti_join(data_25y, rows_with_missing_data, by = "alf")
+# created a cohort with no missing data or miscoded dates 
+# for ease of using original code 
+data <- data_25y
+```
+
+### Right Censoring
+
+```{r}
+# follow-up ends on October 16 2023, end of GP registration, or death, whichever occurs first
+
+data$last_date <- as.Date("2023-10-16")
+
+data$exit_date <- pmin(data[, "end_date"], data[, "dod"], data[, "last_date"], na.rm = TRUE)
+data$exit_dd <- decimal_date(data$exit) # create decimal date for date of exit
+data$age_at_exit <- data$exit_dd - data$wob_dd # create age of exit (decimal date)
+
+#summary(data$exit_date)
+#table(data$exit_date)
+```
+
+### Eliminate those with "Negative" Follow-Up
+
+```{r}
+negativefu <- data %>%
+  filter(entry_dd > exit_dd) %>%
+  dplyr::select("alf", "start_date", "end_date", "tbi_date", "tbi_life", "victimisation_date", "entry_date", "exit_date", "entry_dd", "exit_dd") 
+
+prop.table(table(negativefu$tbi_life))*100
+
+zerofu <- data %>%
+  filter(entry_dd == exit_dd) %>%
+  dplyr::select("alf", "start_date", "end_date", "tbi_date", "tbi_life", "victimisation_date", "entry_date", "exit_date", "entry_dd", "exit_dd")
+
+prop.table(table(zerofu$tbi_life))*100
+
+short_fu <- data %>%
+  filter(as.numeric(difftime(exit_date, entry_date, units = "days")) < 7) %>%
+  dplyr::select("alf", "start_date", "end_date", "tbi_date", "tbi_life", "victimisation_date", "entry_date", "exit_date", "entry_dd", "exit_dd") 
+
+prop.table(table(short_fu$tbi_life))*100
+
+data <- data[data$entry_dd < data$exit_dd, ] # eliminate those with zero follow-up time
+
+data <- data[!is.na(data$alf), ]
+```
+
+# Set the Outcome: Self-Harm
+
+## Complete Data Wrangling
+
+### Assign the date of Self-Harm as the Outcome
+
+```{r}
+# first lets look at suicidality as the outcome of interest 
+outcome <- "suicidality_date"
+
+# follow-up needs to finish on suicidality date, for those with this event
+data$exit_date <- pmin(data$exit_date, data$suicidality_date, na.rm = TRUE)
+data$exit_dd <- decimal_date(data$exit_date) # create decimal date for date of exit
+data$age_at_exit <- data$exit_dd - data$wob_dd # create age of exit 
+
+data$selfharm_dd <- decimal_date(data$suicidality_date) # create decimal date for date of suicidality
+```
+
+### Break-Ties
+
+For some people, the start of follow-up and suicidality event might occur on the same day (ties) in time-to-event setting, this individuals are followed to outcome, and these people would not be considered to be 'exposed' this would underestimate all associations, and outcome should be moved 1 day to "break these ties"
+
+```{r}
+temp <- data
+
+# create a table with all suicidality dates
+# load tables created in SQL with all self-harm events recorded in inpatient, GP, and death records
+
+pedw <- pedw %>%
+  select("ALF_PE", "START_DATE", "DIAG_CD_1234")
+
+wlgp <- wlgp %>%
+  select("ALF_PE", "EVENT_DT", "EVENT_CD")
+
+adde <- adde %>% 
+  select("ALF_PE", "DEATH_DT", "DEATHCAUSE_DIAG_UNDERLYING_CD")
+
+colnames(pedw) <- c("alf", "date", "code")
+colnames(wlgp) <- c("alf", "date", "code")
+colnames(adde) <- c("alf", "date", "code")
+
+combined_data <- bind_rows(pedw, wlgp, adde)
+
+combined_data <- combined_data %>%
+  filter(!is.na(alf))
+
+final_table <- combined_data %>%
+  group_by(alf) %>%
+  mutate(event_number = row_number()) %>%
+  ungroup
+
+final_table <- final_table %>%
+  pivot_wider(
+    id_cols = alf,
+    names_from = event_number, 
+    values_from = c(date, code),
+    names_glue = "event{event_number}_{.value}"
+  ) 
+
+date_cols <- grep("date$", colnames(final_table), value = TRUE)
+
+# identify those with 'ties' 
+ties <- temp %>%
+  filter(exit_dd - entry_dd == 0.000) %>%
+  select(alf, start_date, end_date, tbi_date, suicidality_date, entry_date, exit_date)
+
+filtered_events <- lapply(date_cols, function(date_cols) {
+  final_table %>%
+    select(alf, all_of(date_cols)) %>%
+    rename(event_date = all_of(date_cols)) %>%
+    filter(event_date > ties$suicidality_date[match(alf, ties$alf)] &
+             event_date <= ties$end_date[match(alf, ties$alf)]) %>%
+    mutate(source_column = date_cols)
+})
+
+filtered_events <- bind_rows(filtered_events)
+
+first_event_dates <- filtered_events %>%
+  dplyr::group_by(alf) %>%
+  dplyr::summarize(second_suicidality_date = min(event_date, na.rm = TRUE)) %>%
+  dplyr::ungroup()
+
+ties_joined <- ties %>%
+  left_join(first_event_dates, by = "alf")
+
+colnames(ties_joined)
+
+ties <- ties %>%
+  left_join(ties_joined %>% select(alf, second_suicidality_date), by = "alf")
+
+# add the second suicidality date to the temp table
+temp <- temp %>%
+  left_join(ties_joined %>% select(alf, second_suicidality_date), by = "alf")
+
+# to break ties exclude outcome event, however, individuals remain at-risk during follow-up
+temp <- temp %>%
+  mutate(suicidality_date = case_when(
+    suicidality_date > entry_date ~ as.Date(suicidality_date),
+    suicidality_date <= entry_date ~ NA)
+  )
+
+## also for the washout period exclude outcome events within 6 days of study entry / 7 days of the TBI date
+short_fu <- temp %>%
+  filter(as.numeric(difftime(suicidality_date, entry_date, units = "days")) <= 6) %>%
+  dplyr::select(alf, dod, start_date, end_date, tbi_date, tbi_life, suicidality_date)
+
+prop.table(table(short_fu$tbi_life))*100
+
+check <- short_fu %>%
+  filter(dod == suicidality_date)
+
+temp <- temp %>%
+  mutate(suicidality_date = case_when(
+    as.numeric(difftime(suicidality_date, entry_date, units = "days")) > 6 ~ as.Date(suicidality_date),
+    as.numeric(difftime(suicidality_date, entry_date, units = "days")) <= 6 ~ NA)
+  )
+
+# add the next self-harm event during follow-up
+temp <- temp %>%
+  mutate(suicidality_date = case_when(
+    exit_dd - entry_dd == 0.000 ~ as.Date(second_suicidality_date),
+    as.numeric(difftime(suicidality_date, entry_date, units = "days")) <= 6 ~ as.Date(second_suicidality_date),
+    TRUE ~ as.Date(suicidality_date)))
+
+# update self-harm flag 
+temp <- temp %>%
+  mutate(suicidality_life = case_when(
+    is.na(suicidality_date) ~ 0,
+    !is.na(suicidality_date) ~ 1
+    
+  ))
+
+temp <- temp %>%
+  mutate(selfharm_dd = decimal_date(data$suicidality_date))
+
+# update exit date
+temp <- temp %>%
+  mutate(exit_date = coalesce(end_date, dod, last_date))
+temp <- temp %>%
+  mutate(exit_date = coalesce(suicidality_date, exit_date))
+temp$exit_dd <- decimal_date(temp$exit_date) # create decimal date for date of exit
+temp$age_at_exit <- temp$exit_dd - temp$wob_dd 
+
+# X individual for which event was not censored
+# manually alter self-harm date for X participant 
+# X individual who was born after study entry
+```
+
+### Creating the Fail and Outcome Variables
+
+::: callout-note
+For participants with a self-harm event before the start of follow-up, now exit will occur before entry
+:::
+
+Creating a "fail" variable for censoring where 0 = censored (they exit on the last date of the study period 16 Oct 2023); 1 = event; 80 = study exit wasn't October 16 2023; 90 = death; 91 = death & diagnosis on the same day.
+
+```{r}
+
+temp$fail <- (90 * (!is.na(temp$dod) & (temp$dod == temp$exit_date))) + 
+  (80 * (!is.na(temp$exit_date) & (temp$exit_date != temp$last_date) & is.na(temp$dod) & is.na(temp$suicidality_date))) +
+  (01 * (!is.na(temp$suicidality_date) & (temp$suicidality_date <= temp$exit_date)))
+
+table(temp$fail)
+
+# create an "outcome" column for suicidality during follow up, where fail == 1 or fail == 91
+temp <- temp %>%
+  mutate(outcome = if_else(fail == 1 | fail == 91, 1, 0))
+
+table(temp$outcome)
+table(!is.na(temp$suicidality_date), temp$outcome) # checking that everyone with an event date had an 'outcome'
+
+# these people are considered 'censored' as their suicidality date is not equal or before to their exit date ###
+```
+
+### Specify Tbi Recurrence (Time Varying Covariate)
+
+```{r}
+
+# create a table with all TBI dates (in secondary records)
+# load files from SQL
+
+edds_unspec <- edds_unspec %>%
+  dplyr::select("ALF_PE", "ADMIN_ARR_DT")
+
+edds_mild <- edds_mild %>%
+  dplyr::select("ALF_PE", "ADMIN_ARR_DT")
+
+edds_mod <- edds_mod %>%
+  dplyr::select("ALF_PE", "ADMIN_ARR_DT")
+
+pedw_unspec <- pedw_unspec %>%
+  dplyr::select("ALF_PE", "START_DATE")
+
+pedw_mild <- pedw_mild %>%
+  dplyr::select("ALF_PE", "START_DATE")
+
+pedw_mod <- pedw_mod %>%
+  dplyr::select("ALF_PE", "START_DATE")
+
+colnames(edds_unspec) <- c("alf", "date")
+colnames(edds_mild) <- c("alf", "date")
+colnames(edds_mod) <- c("alf", "date")
+colnames(pedw_unspec) <- c("alf", "date")
+colnames(pedw_mild) <- c("alf", "date")
+colnames(pedw_mod) <- c("alf", "date")
+
+# link with first TBI already identified (primary and secondary records)
+# load files from SQL
+
+tbi <- tbi %>%
+  dplyr::select("ALF_PE", "STUDY_DATE")
+
+colnames(tbi) <- c("alf", "date")
+
+combined_data <- bind_rows(edds_unspec, edds_mild, edds_mod, pedw_unspec, pedw_mild, pedw_mod, tbi)
+
+# clean environment
+rm(list = c("edds_mild", "edds_mod", "edds_unspec", "pedw_mild", "pedw_mod", "pedw_unspec"))
+
+combined_data <- combined_data %>%
+  filter(!is.na(alf))
+
+final_table <- combined_data %>%
+  group_by(alf) %>%
+  mutate(event_number = row_number()) %>%
+  ungroup
+
+final_table <- final_table %>%
+  pivot_wider(
+    id_cols = alf,
+    names_from = event_number, 
+    values_from = c(date),
+    names_glue = "event{event_number}_{.value}"
+  )
+
+final_table_long <- final_table %>%
+  pivot_longer(
+    cols = matches("date$"),
+    names_to = "event_type",
+    values_to = "event_date"
+  ) %>%
+  dplyr::select(-contains("code"))
+
+final_table_long <- final_table_long %>%
+  filter(!is.na(event_date))
+
+tbi_recurrent_list <- final_table_long
+
+# ensure only the people identified with a TBI under age 25y are included
+tbi_recurrent_list <- tbi_recurrent_list %>% 
+  filter(alf %in% tbi$alf)
+num_unique_alf <- n_distinct(tbi_recurrent_list$alf)
+num_unique_alf 
+
+# ensure only events during the study period (for each person) are included
+recurrent_merged <- left_join(tbi_recurrent_list, temp, by = "alf")
+
+# review dates outside of the study period 
+tbi_remove <- recurrent_merged %>%
+  filter(event_date < start_date | event_date > end_date)
+
+tbi_remove <- tbi_remove %>%
+  select("alf", "event_type", "event_date", "start_date", "end_date")
+
+# remove the dates outside the study period
+recurrent_merged <- recurrent_merged %>%
+  filter(event_date >= start_date | event_date <= end_date)
+
+tbi_recurrent_list <- recurrent_merged %>%
+  dplyr::select("alf", "event_type", "event_date", "start_date", "end_date")
+
+tbi_recurrent_list <- recurrent_merged %>%
+  dplyr::select("alf", "event_type", "event_date")
+
+# only one tbi per date per individual
+duplicates <- tbi_recurrent_list %>%
+  group_by(alf, event_date) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+tbi_recurrent_list <- tbi_recurrent_list %>%
+  arrange(alf, event_date) %>%
+  distinct(alf, event_date, .keep_all = TRUE)
+
+# convert event_date to numeric 
+## the TBI date should be expressed relative to the start of follow-up
+## change_time is time since first TBI
+tbi_recurrent_list <- tbi_recurrent_list %>%
+  left_join(temp %>% dplyr::select(alf, entry_date), by = "alf") %>%
+  mutate(change_time = as.numeric(event_date - entry_date))
+
+tbi_recurrent_list <- tbi_recurrent_list %>%
+  mutate(change_time = case_when(
+    change_time < 0 ~ 0,
+    change_time > 0 ~ change_time
+  ))
+
+# arrange and create num_tbi variable
+tbi_recurrent_list <- tbi_recurrent_list %>%
+  arrange(alf, event_date) %>% # events are ordered by alf and date
+  group_by(alf) %>% # group by individual
+  mutate(
+    num_tbi = row_number()
+  ) %>%
+  ungroup()
+
+#summary(tbi_recurrent_list$num_tbi)
+```
+
+### Prepare for Time-to-Event Analysis
+
+Start of follow-up: date of TBI event + 1 (cases), study entry + 1 (controls).
+
+```{r}
+temp2 <- temp %>%
+  mutate(s_day = entry_dd - entry_dd) %>%
+  mutate(follow_up = exit_dd - entry_dd)
+
+# create s_day to assign as tstart (s_day = 0 so can something to subtract from)
+
+summary(temp2$follow_up)
+
+zero_fu <- temp2 %>%
+  filter(follow_up == 0.000) %>%
+  dplyr::select("alf", "start_date", "end_date", "tbi_date", "tbi_life", "suicidality_date", "entry_date", "exit_date", "exit_dd", "entry_dd", "s_day", "follow_up") # have effectively broken ties
+
+#table(zero_fu$tbi_life)
+#prop.table(table(zero_fu$tbi_life))*100
+
+temp2 <- tmerge(temp2, temp2, id = alf, tstart = s_day, tstop = follow_up)
+temp2 <- tmerge(temp2, temp2, id = alf, endpoint = event(tstop, outcome))
+# tmerge function help creates start,stop datasets with multiple intervals per participants
+
+# use tmerge to add the time-varying covariate of tbi (recurrent)
+temp3 <- tmerge(
+  temp2, # the previous `tmerge()` output, an initialised dataset with tstart/stop intervals and event information
+  tbi_recurrent_list,  # dataset with time-varying information
+  id = alf, # identifier column
+  tbi_injuries = tdc(change_time, num_tbi) # time-dependent covariate
+)
+## if event_date > tstop, the covariate is not added (as it has been censored)
+
+temp3 <- temp3 %>%
+  mutate(expo_tbi = ifelse(diagnosis == 'tbi', TRUE, FALSE))
+
+temp3 <- temp3 %>%
+  mutate(time = tstop - tstart)
+
+summary(temp3$tbi_injuries)
+temp3 <- temp3 %>% 
+  mutate(tbi_injuries = if_else(tbi_life == 0 & !is.na(tbi_injuries), NA, tbi_injuries))
+
+# small tweaks to temp2 
+temp2 <- temp2 %>%
+  mutate(expo_tbi = ifelse(diagnosis == 'tbi', TRUE, FALSE))
+
+temp2 <- temp2 %>%
+  mutate(time = tstop - tstart)
+
+## add binary recurrence variable 
+tbi_recurr <- tbi_recurrent_list %>%
+  group_by(alf) %>%
+  summarise(num_tbi = max(num_tbi, na.rm = TRUE)) 
+
+temp2 <- temp2 %>%
+  left_join(tbi_recurr, by = "alf")
+
+temp2 <- temp2 %>% 
+  mutate(num_tbi = if_else(tbi_life == 0 & !is.na(num_tbi), NA, num_tbi))
+
+temp2 <- temp2 %>% 
+  mutate(recurrent_tbi_suicidality = case_when(
+    num_tbi == 1 ~ 0,
+    num_tbi >= 2 ~ 1
+  )) # NA if non-TBI, 0 if 1 TBI, 1 if recurrent TBI
+
+# change num_tbi to the person with one tbi however this is a first tbi and after 25
+
+```
+
+### Save Cleaned Self-Harm Data
+
+```{r}
+data_survival <- temp2
+
+data_tdc <- temp3
+
+rm(list =c("data", "temp", "temp2", "ties_joined", "zero_fu")) # remove dfs 
+```
+
+## Descriptive Statistics: Self-Harm
+
+Load data and calculate the persons at riskf of self-harm, the number of new cases of self-harm across follow-up and the number of participants exposed to TBI.
+
+```{r}
+## persons at risk of self-directed violence during follow-up, overall and by sex
+nrow(data_survival) 
+table(data_survival$sex) 
+table(data_survival$diagnosis) 
+table(data_survival$diagnosis, data_survival$sex) 
+
+## new cases of self-directed violence during follow-up, overall and by sex
+nrow(data_survival[data_survival$endpoint==1, ]) 
+table(data_survival[data_survival$endpoint==1, "sex"]) 
+table(data_survival[data_survival$endpoint==1, "diagnosis"]) 
+table(data_survival[data_survival$endpoint==1, "diagnosis"], data_survival[data_survival$endpoint==1, "sex"]) 
+
+# total exposure 
+table(data_survival$tbi_life)
+table(data_survival$tbi_severity) 
+table(data_survival$tbi_severity_binary)
+table(data_survival$recurrent_tbi_suicidality)
+data_survival %>% count(num_tbi) 
+
+data_survival$age_at_selfharm <- data_survival$selfharm_dd - data_survival$wob_dd
+str(data_survival$age_at_selfharm)
+summary(data_survival$age_at_selfharm)
+
+data_survival$age_at_tbi <- decimal_date(data_survival$tbi_date) - decimal_date(data_survival$wob)
+data_survival$age_at_tbi <- as.numeric(data_survival$age_at_tbi)
+
+# age at exposure
+mild <- data_survival %>%
+  filter(tbi_severity == "probable mild")
+summary(mild$age_at_tbi) 
+
+mod_sev <- data_survival %>%
+  filter(tbi_severity == "probable moderate-severe")
+summary(mod_sev$age_at_tbi) 
+
+tbi <- data_survival %>%
+  filter(diagnosis == "tbi")
+summary(tbi$age_at_tbi) 
+
+no_tbi <- data_survival %>%
+  filter(diagnosis == 'no tbi')
+
+## information on follow-up
+person_years_fu <- sum(data_survival$person_time_days) / 365.24
+
+summary(data_survival$time) 
+sd(data_survival$time) 
+
+summary(tbi$time) 
+sd(tbi$time)
+
+summary(no_tbi$time) 
+sd(no_tbi$time) 
+
+sum(data_survival$time) 
+sum(tbi$time) 
+sum(no_tbi$time)
+```
+
+```{r}
+# sex descript
+table(data_survival$sex)
+prop.table(table(data_survival$sex))*100 
+
+# birth year descript
+assign_decade <- function(week_date) {
+  year <- year(week_date)
+  decade_start <- floor((year - 1)/10) *10 + 1
+  decade_end <- decade_start + 9
+  return(paste(decade_start, "-", decade_end))
+}
+
+decade_counts <- data_survival %>%
+  mutate(decade = assign_decade(wob)) %>%
+  group_by(decade) %>%
+  summarise(
+    count = n(),
+    died = sum(!is.na(dod))) %>%
+  mutate(
+    percent = (count / sum(count))*100,
+    died_percent = (died / count)*100
+  ) %>%
+  mutate(
+    percent = number(percent, accuaracy = 0.1),
+    died_percent = number(died_percent, accuaracy = 0.1)
+  ) %>%
+  arrange(decade)
+
+# age at start and end of follow-up descriptives
+summary(tbi$age_at_entry)
+summary(no_tbi$age_at_entry)
+
+summary(data_survival$age_at_entry) 
+summary(data_survival$age_at_exit) 
+
+# descriptive statistics of covariates: sex, deprivation, adverse childhood experience (lifetime), psychiatric conditions (lifetime), neurological conditions (lifetime), substance misuse (lifetime)
+
+# age at baseline by CDC age categories
+data_survival$agebaseline <- cut(data_survival$age_at_entry,
+                  breaks = c(-Inf, 4, 9, 14, 19, 25),
+                  labels = c("0-4", "5-9", "10-14", "15-19", "20-24"),
+                  right = FALSE)
+
+datasummary_crosstab(agebaseline ~ diagnosis, data = data_survival)
+
+# deprivation 
+datasummary_crosstab(deprivation ~ diagnosis, data = data_survival)
+
+# other characteristics 
+data_descriptive <- data_survival %>%
+  mutate(sex = ifelse(sex == 0, 'male', 'female'),
+         deprivation = ifelse(deprivation == 5, 'high deprivation', 'moderate-low deprivation'),
+         'Lifetime substance misuse' = ifelse(!is.na(sud_date), 'yes', 'no'),
+         'Lifetime psychiatric comorbidity' = ifelse(psychiatric_life == 1, 'yes', 'no'),
+         'Lifetime neurological comorbidity' = ifelse(neurological_life == 1, 'yes', 'no'),
+         'Childhood maltreatment' = ifelse(child_maltreatment_flag == 1, 'yes', 'no'),
+         'Self-directed violence' = ifelse(endpoint == 1, 'yes', 'no')) %>%
+  select(diagnosis, 
+         tbi_severity = tbi_severity,
+         sex,
+         deprivation,
+         'Lifetime substance misuse', 
+         'Lifetime psychiatric comorbidity',
+         'Lifetime neurological comorbidity',
+         'Childhood maltreatment')
+
+data_descriptive <- data_descriptive %>%
+  select(diagnosis, tbi_severity, sex, deprivation, 'Lifetime substance misuse', 'Lifetime psychiatric comorbidity', 'Lifetime neurological comorbidity', 'Childhood maltreatment')
+
+datasummary_balance(~diagnosis,
+                    data = data_descriptive)
+
+# prior psychiatric and neurological disorders descript
+tbi_descriptive <- tbi %>%
+  mutate(sex = ifelse(sex == 0, 'male', 'female'),
+         deprivation = ifelse(deprivation == 5, 'high deprivation', 'moderate-low deprivation'),
+         'substance misuse' = ifelse(pretbi_sud == 1, 'yes', 'no'),
+         'psychiatric comorbidity' = ifelse(pretbi_psychiatric == 1, 'yes', 'no'),
+         'neurological comorbidity' = ifelse(pretbi_neurological == 1, 'yes', 'no'),
+         'self-directed violence' = ifelse(endpoint == 1, 'yes', 'no')) %>%
+  select(diagnosis, 
+         tbi_severity = tbi_severity,
+         sex,
+         deprivation,
+         'substance misuse', 
+         'psychiatric comorbidity',
+         'neurological comorbidity',
+         'self-directed violence')
+
+tbi_descriptive <- tbi_descriptive %>%
+  dplyr::select(diagnosis, tbi_severity, 'substance misuse', 'psychiatric comorbidity', 
+                'neurological comorbidity')
+
+datasummary_balance(~diagnosis,
+                    data = tbi_descriptive, 
+                    title = "Pre-TBI comorbidities descriptives")
+
+datasummary_balance(~tbi_severity,
+                    data = tbi_descriptive, 
+                    title = "Pre-TBI comorbidities descriptives")
+
+# chi-squared test to check whether the proportion of individuals with lifetime psychiatric conditions differs in those with TBI and those without
+chisq.test(data_survival$diagnosis, data_survival$psychiatric_life)
+
+datasummary_balance(~tbi_severity,
+                    data = data_descriptive)
+
+# association between TBI (exposure) and suicidal behaviour (outcome)
+table(data_survival$tbi_life, data_survival$endpoint) 
+prop.table(table(data_survival$tbi_life, data_survival$endpoint))*100 
+
+table(data_survival$tbi_severity, data_survival$endpoint)
+prop.table(table(data_survival$tbi_severity, data_survival$endpoint))*100
+
+data_descriptive <- data_survival %>%
+  mutate(sex = ifelse(sex == 0, 'male', 'female'),
+         'Lifetime substance misuse' = ifelse(!is.na(sud_date), 'yes', 'no'),
+         'Lifetime psychiatric comorbidity' = ifelse(psychiatric_life == 1, 'yes', 'no'),
+         'Lifetime neurological comorbidity' = ifelse(neurological_life == 1, 'yes', 'no'),
+         'Childhood maltreatment' = ifelse(child_maltreatment_flag == 1, 'yes', 'no'),
+         'Self-directed violence' = ifelse(endpoint == 1, 'yes', 'no')) %>%
+  select(diagnosis, 
+         tbi_severity = tbi_severity,
+         sex,
+         'Lifetime substance misuse', 
+         'Lifetime psychiatric comorbidity',
+         'Lifetime neurological comorbidity',
+         'Childhood maltreatment',
+         'Self-directed violence')
+
+data_outcome <- data_descriptive %>%
+  select(diagnosis, tbi_severity, 'Self-directed violence')
+
+datasummary_balance(~diagnosis,
+                    data = data_outcome, 
+                    title = "Self-directed violence Events")
+
+datasummary_balance(~tbi_severity,
+                    data = data_outcome, 
+                    title = "Self-directed violence Events")
+
+
+summary(data_survival$age_at_selfharm) 
+summary(mild$age_at_selfharm) 
+summary(mod_sev$age_at_selfharm) 
+summary(tbi$age_at_selfharm) 
+summary(no_tbi$age_at_selfharm) 
+
+# number censored during follow-up
+censored <- data_survival %>%
+  group_by(alf) %>%
+  arrange(tstop) %>%
+  filter(row_number() ==n())
+table(censored$fail,censored$endpoint)
+```
+
+## Cumulative Incidence and Kaplan-Meier Curves
+
+```{r}
+## cumulative incidence is equal to 1 - survival
+
+fit <- survfit( Surv(time, endpoint) ~ diagnosis, data = data_survival)
+summary(fit, times = c(0, 1, 5, 10, 14, 15)) # fit time based on follow-up (and max follow-up)
+summary(fit, times = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15))
+
+# incidence is inverse of survival (therefore 1 - survival)
+plot <- ggsurvplot(fit, conf.int = TRUE, risk.table = TRUE, cumevents = TRUE, cumcensor = TRUE,
+                   #pval = TRUE,
+                   #pval.coord = c(0.05, 2.5),
+                   fun = function(y) (1-y)*100,
+                   xlab = 'Time (in years)',
+                   xlim = c(0,12),
+                   break.x.by = 3,
+                   ylab = 'Cumulative incidence (in %)', 
+                   censor = FALSE, 
+                   
+                   legend.title = "Exposure", 
+                   legend.labs = c("No TBI diagnosis", "TBI diagnosis"),
+                   
+                   smooth = TRUE,
+                   
+                   tables.height = 0.2,
+                   tables.theme = theme_cleantable(),
+                   
+                   palette = c('cadetblue3', 'lightpink3')
+)
+
+km_plot <- plot$plot
+risk_table <- plot$table
+cum_events <- plot$cumevents
+cum_censor <- plot$ncensor.plot
+
+plot2 <- cowplot::plot_grid(
+  km_plot,
+  risk_table,
+  cum_events, 
+  cum_censor,
+  ncol = 1, 
+  align = "v",
+  rel_heights = c(0.45, 0.15, 0.15, 0.15)
+)
+
+padded_plot <- ggdraw() + 
+  draw_plot(plot2, x = 0.05, y = 0.05, width = 0.9, height = 0.9)
+
+padded_plot
+
+plot <- ggsurvplot(fit, conf.int = TRUE, risk.table = FALSE, cumevents = FALSE, cumcensor = FALSE,
+                   fun = function(y) (1-y)*100,
+                   xlab = 'Time (in years)',
+                   xlim = c(0,12),
+                   break.x.by = 3,
+                   ylab = 'Cumulative incidence (in %)',
+                   ylim = c(0,15),
+                   break.y.by = 3,
+                   censor = FALSE, 
+                   
+                   legend.title = "Exposure", 
+                   legend.labs = c("No TBI diagnosis", "TBI diagnosis"),
+                   
+                   smooth = TRUE,
+                   
+                   palette = c('cadetblue3', 'lightpink3'),
+) 
+
+plot
+
+# smoothed curves in line with SAIL output procedure 
+# first, clean-up the diagnosis variable for the legend
+data <- data_survival
+data <- data %>%
+  mutate(diagnosis = case_when(
+    diagnosis == "tbi" ~ "TBI diagnosis",
+    diagnosis == "no tbi" ~ "No TBI diagnosis"
+  ))
+colnames(data)[colnames(data) == "diagnosis"] <- "Exposure"
+
+fit <- survfit( Surv(time, endpoint) ~ Exposure, data = data)
+
+# convert the survival object to a tidy frame
+surv_data <- surv_summary(fit, data = data)
+
+# transform survival probabilities to cumulative incidence
+surv_data$incidence <- (1-surv_data$surv) * 100 
+
+surv_data <- surv_data %>%
+  mutate(strata = case_when(
+    strata == "Exposure=No TBI diagnosis" ~ "No TBI diagnosis",
+    strata == "Exposure=TBI diagnosis" ~ "TBI diagnosis"
+  ))
+
+# plot KM curves with smoothing
+plot_smoothed <- ggplot(surv_data, aes(x = time, y = incidence, color = strata))+
+  #geom_step(aes(linetype = strata), size = 0.8) + # original KM curve, comment this line out if happy with the smoothing, uncomment to see the steps
+  geom_smooth(method = "loess", span = 0.3, se = FALSE, aes(fill = strata), alpha = 0.2)+
+  labs(#title = "Cumulative incidence of self-directed violence over time from start of follow-up",
+    x = 'Time (in years)',
+    y = 'Cumulative incidence (in %)',
+    color = "Exposure",
+    linetype = "Exposure",
+    fill = "Exposure") +
+  scale_y_continuous(limits = c(0, 8)) + # scales y axis from 0 to 20 you can adjust as you like. +
+  scale_x_continuous(limits = c(0, 14), breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) +
+  theme_cowplot(12)
+
+plot_smoothed
+```
+
+## Cox Regressions
+
+### Model Assumptions
+
+Assess non-linearity of continuous predictors (age) using restricted cubic splines
+
+```{r}
+# age at baseline (full sample)
+agebaseline3_spline <- rcs(data_survival$age_at_entry,3)
+agebaseline4_spline <- rcs(data_survival$age_at_entry,4)
+agebaseline5_spline <- rcs(data_survival$age_at_entry,5)
+
+cox_baseline3 <- coxph(Surv(tstart,tstop, endpoint) ~ agebaseline3_spline, data = data_survival, ties = "breslow")
+cox_baseline3
+lp_baseline3 <- predict (cox_baseline3)
+
+cox_baseline4 <- coxph(Surv(tstart,tstop, endpoint) ~ agebaseline4_spline, data = data_survival, ties = "breslow")
+cox_baseline4
+lp_baseline4 <- predict (cox_baseline4)
+
+cox_baseline5 <- coxph(Surv(tstart,tstop, endpoint) ~ agebaseline5_spline, data = data_survival, ties = "breslow")
+cox_baseline5
+lp_baseline5 <- predict (cox_baseline5)
+
+data_splines <- data.frame(data_survival$age_at_entry,lp_baseline3, lp_baseline4, lp_baseline5)
+data_splines_m <- melt(data_splines,id.vars = 'data_survival.age_at_entry')
+plot_splines <- ggplot(data_splines_m, aes(x=data_survival.age_at_entry, y=value, colour=variable)) + geom_line() + scale_colour_manual(labels = c("3 knots", "4 knots", "5 knots"), values = c('cadetblue3', "darkseagreen", "deeppink3")) + theme_bw()
+plot_splines + labs(x = "Age at Baseline", y = "Linear prediction", color = "") + theme(legend.position.inside = c(0.8,0.2))
+
+AIC(cox_baseline3) 
+BIC(cox_baseline3) 
+
+AIC(cox_baseline4) 
+BIC(cox_baseline4) 
+
+AIC(cox_baseline5) 
+BIC(cox_baseline5) 
+
+# age at first TBI
+cox_age_tbi <- coxph(Surv(tstart,tstop, endpoint) ~ age_at_tbi, data = tbi)
+martingale_residuals <- resid(cox_age_tbi, type = "martingale")
+
+plot(tbi$age_at_tbi, martingale_residuals, pch = 20, col = "cadetblue4",
+     xlab = "Age at first TBI", ylab = "Martingale Residual", 
+     main = "Residuals vs. TBI Age")
+
+abline(h = 0)
+lines(smooth.spline(tbi$cox_age_tbi, martingale_residuals, df = 7), lty = 2, lwd = 2)
+dev.off()
+
+ageTBI3_spline <- rcs(tbi$age_at_tbi,3)
+ageTBI4_spline <- rcs(tbi$age_at_tbi,4)
+ageTBI5_spline <- rcs(tbi$age_at_tbi,5)
+
+cox_ageTBI3 <- coxph(Surv(tstart,tstop, endpoint) ~ ageTBI3_spline, data = tbi, ties = "breslow")
+cox_ageTBI3
+lp_ageTBI3 <- predict (cox_ageTBI3)
+
+cox_ageTBI4 <- coxph(Surv(tstart,tstop, endpoint) ~ ageTBI4_spline, data = tbi, ties = "breslow")
+cox_ageTBI4
+lp_ageTBI4 <- predict (cox_ageTBI4)
+
+cox_ageTBI5 <- coxph(Surv(tstart,tstop, endpoint) ~ ageTBI5_spline, data = tbi, ties = "breslow")
+cox_ageTBI5
+lp_ageTBI5 <- predict (cox_ageTBI5)
+
+data_splines <- data.frame(tbi$age_at_tbi,lp_ageTBI3, lp_ageTBI4, lp_ageTBI5)
+data_splines_m <- melt(data_splines,id.vars = 'tbi.age_at_tbi')
+plot_splines <- ggplot(data_splines_m, aes(x=tbi.age_at_tbi, y=value, colour=variable)) + geom_line() + scale_colour_manual(labels = c("3 knots", "4 knots", "5 knots"), values = c('cadetblue3', "darkseagreen", "deeppink3")) + theme_bw()
+plot_splines + labs(x = "Age at first TBI", y = "Linear prediction", color = "") + theme(legend.position.inside = c(0.8,0.2))
+
+AIC(cox_ageTBI3) 
+BIC(cox_ageTBI3) 
+
+AIC(cox_ageTBI4) 
+BIC(cox_ageTBI4) 
+
+AIC(cox_ageTBI5) 
+BIC(cox_ageTBI5) 
+
+tbi$agetbi <- cut(tbi$age_at_tbi,
+                  breaks = c(-Inf, 4, 9, 14, 19, 25),
+                  labels = c("0-4", "5-9", "10-14", "15-19", "20-24"),
+                  right = FALSE)
+
+```
+
+Assess the proportional hazards assumption. The log-minus-log plot is used to check proportional hazards, if the lines for different groups are approximately parallel, proportional hazards assumption holds. If the lines cross or are not parallel, it suggests that the proportional hazards assumption might be violated.
+
+```{r}
+fit <- survfit(Surv(tstart,tstop, endpoint)~sex, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("psychiatric disorder: no", "psychiatric disorder: yes"),
+                        legend.title = "",
+                        legend = c(0.3,0.95),
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p1 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~deprivation, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', "darkseagreen", "indianred4", "deeppink3", 'lightpink3'),
+                        legend.labs = c("WIMD 5: least deprived", "WIMD 4", "WIMD 3", "WIMD 2", "WIMD 1: most deprived"),
+                        legend.title = "",
+                        legend = c(0.3,0.87), 
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p2 <- smooth_plot + # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) +
+  scale_color_manual(values = c('cadetblue3', "darkseagreen", "indianred4", "deeppink3", 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~child_maltreatment_flag, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("child maltreatment: no", "child maltreatment: yes"),
+                        legend.title = "",
+                        legend = c(0.3,0.95),
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p3 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~psychiatric_life, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("psychiatric disorder: no", "psychiatric disorder: yes"),
+                        legend.title = "",
+                        legend = c(0.3,0.95),
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p4 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~neurological_life, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("neurological disorder: no", "neurological disorder: yes"),
+                        legend.title = "",
+                        legend = c(0.3,0.95), 
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p5 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~sud_life, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("sud: no", "sud: yes"),
+                        legend.title = "",
+                        legend = c(0.3,0.95), 
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p6 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~tbi_severity, data = tbi)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("severity: probable mild", "severity: probable moderate-severe"),
+                        legend.title = "",
+                        legend = c(0.3,0.95), 
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p7 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~agetbi, data = tbi)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', "darkseagreen", "indianred4", "deeppink3", 'lightpink3'),
+                        legend.labs = c("age: 0-4y", "age: 5-9y", "age: 10-14y", "age: 15-19y", "age: 20-24y"),
+                        legend.title = "",
+                        legend = c(0.3,0.87), 
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p9 <- smooth_plot + # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) +
+  scale_color_manual(values = c('cadetblue3', "darkseagreen", "indianred4", "deeppink3", 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+
+combined_plot <- cowplot::plot_grid(p1, p2, p3, p4, p5, p6, p7, p9, ncol = 3)
+
+combined_plot  
+
+
+rm(list =c("p1", "p2", "p3", "p4", "p5", "p6", "p7", "p9", "combined_plot"))
+
+```
+
+### Univariate Models
+
+```{r}
+# univariate models with categorical variables 
+cox_sex <- coxph(Surv(tstart,tstop, endpoint)~ sex, data = data_survival)
+cox_deprivation <- coxph(Surv(tstart,tstop, endpoint)~factor(deprivation), data = data_survival)
+cox_cpr <- coxph(Surv(tstart,tstop, endpoint)~child_maltreatment_flag, data = data_survival)
+cox_psych <- coxph(Surv(tstart,tstop, endpoint)~psychiatric_life, data = data_survival)
+cox_neuro <- coxph(Surv(tstart,tstop, endpoint)~neurological_life, data = data_survival)
+cox_sud <- coxph(Surv(tstart,tstop, endpoint)~sud_life, data = data_survival)
+                 
+  # tbi only cohort 
+  cox_sex <- coxph(Surv(tstart,tstop, endpoint)~ sex, data = tbi)
+  cox_deprivation <- coxph(Surv(tstart,tstop, endpoint)~factor(deprivation), data = tbi)
+  cox_cpr <- coxph(Surv(tstart,tstop, endpoint)~child_maltreatment_flag, data = tbi)
+  cox_psych <- coxph(Surv(tstart,tstop, endpoint)~psychiatric_life, data = tbi)
+  cox_neuro <- coxph(Surv(tstart,tstop, endpoint)~neurological_life, data = tbi)
+  cox_sud <- coxph(Surv(tstart,tstop, endpoint)~sud_life, data = tbi)
+  cox_sev <- coxph(Surv(tstart,tstop, endpoint)~tbi_severity_binary, data = tbi)
+  cox_recurr <- coxph(Surv(tstart,tstop, endpoint)~tbi_recurrence_victim, data = tbi)
+  cox_agetbi <- coxph(Surv(tstart,tstop, endpoint)~factor(agetbi), data = tbi)
+  
+  # controls only cohort
+  cox_sex <- coxph(Surv(tstart,tstop, endpoint)~ sex, data = no_tbi)
+  cox_deprivation <- coxph(Surv(tstart,tstop, endpoint)~factor(deprivation), data = no_tbi)
+  cox_cpr <- coxph(Surv(tstart,tstop, endpoint)~child_maltreatment_flag, data = no_tbi)
+  cox_psych <- coxph(Surv(tstart,tstop, endpoint)~psychiatric_life, data = no_tbi)
+  cox_neuro <- coxph(Surv(tstart,tstop, endpoint)~neurological_life, data = no_tbi)
+  cox_sud <- coxph(Surv(tstart,tstop, endpoint)~sud_life, data = no_tbi)
+
+```
+
+### Multivariate Models: Total Effect
+
+The total effect of TBI diagnosis on time to self-harm is estimated by Cox proportional hazards regression (survival). Covariates are included to adjust for potential confounders.
+
+```{r}
+# model 1: minimially adjusted (sex and birth date)
+model_1 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life + sex + rcs(age_at_entry, 5), data = data_survival)
+summary(model_1)
+
+print(paste0("HR = ", format(exp(summary(model_1)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_1)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_1)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+# model 2: model 1 + deprivation 
+model_2 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life + sex + rcs(age_at_entry, 5) + factor(deprivation), data = data_survival)
+summary(model_2)
+
+print(paste0("HR = ", format(exp(summary(model_2)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_2)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_2)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+# model 3: model 2 + SUD
+model_3 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life + sex + rcs(age_at_entry, 5) + factor(deprivation) + sud_life, data = data_survival)
+summary(model_3)
+
+print(paste0("HR = ", format(exp(summary(model_3)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_3)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_3)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+# model 4: model 3 + childhood maltreatment
+model_4 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life + sex + rcs(age_at_entry, 5) + factor(deprivation) + sud_life + child_maltreatment_flag, data = data_survival)
+summary(model_4)
+
+print(paste0("HR = ", format(exp(summary(model_4)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_4)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_4)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+
+# risk factors (and their HR) in the final multivariable model
+result <- summary(model_4)
+summary_table <- data.frame(
+  Covariate = rownames(result$coefficients),
+  HR = result$coefficients[, "exp(coef)"],
+  `Lower 95% CI` = result$conf.int[, "lower .95"],
+  `Upper 95% CI` = result$conf.int[, "upper .95"],
+  `p-value` = result$coefficients[, "Pr(>|z|)"]
+)
+
+print(summary_table)
+```
+
+### Stratified Analysis
+
+```{r}
+# the * operator between tbi_life and psychiatric_life creates an interaction term, meaning the model will estimate separate effects for psychiatric_life == 0 and == 1
+# the lincom() command produces a HR for each strata
+# therefore, syntac-wise is it an interaction term, but this enables us to run a stratified analysis
+table(data_survival$psychiatric_life) 
+table(data_survival[data_survival$endpoint==1, "psychiatric_life"]) 
+
+# strata: psychiatric conditions on fully adjusted model
+model_5 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life * psychiatric_life + sex + rcs(age_at_entry, 5) + factor(deprivation) + sud_life + child_maltreatment_flag, data = data_survival)
+
+lincom(model_5, c("tbi_life"),eform = TRUE)
+
+lincom(model_5, c("tbi_life + tbi_life:psychiatric_life"),eform = TRUE)
+
+# strata: neurological conditions on fully adjusted model
+table(data_survival$neurological_life) 
+table(data_survival[data_survival$endpoint==1, "neurological_life"]) 
+
+model_6 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life * neurological_life + sex + rcs(age_at_entry, 5) + factor(deprivation) + sud_life + child_maltreatment_flag, data = data_survival)
+
+lincom(model_6, c("tbi_life"),eform = TRUE)
+
+lincom(model_6, c("tbi_life + tbi_life:neurological_life"),eform = TRUE)
+```
+
+### Sensitivity Analysis
+
+```{r}
+# model 7: re-specified by severity (probable mild versus probable moderate-severe) on fully-adjusted model
+model_7 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_severity + sex + rcs(age_at_entry, 5) + factor(deprivation) + sud_life + child_maltreatment_flag, data = tbi)
+summary(model_7)
+
+print(paste0("HR = ", format(exp(summary(model_7)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_7)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_7)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+# model 8: re-specified by recurrent vs single episode (time-varying covariate)
+
+tbi_tdc <- data_tdc %>%
+  filter(diagnosis == "tbi")
+
+model_8 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_injuries + sex + rcs(age_at_entry, 5) + factor(deprivation) + sud_life + child_maltreatment_flag, data = tbi_tdc)
+summary(model_8)
+
+print(paste0("HR = ", format(exp(summary(model_8)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_8)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_8)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+# model 9: (nested) interaction effect of age at injury
+
+data_survival$agetbi <- cut(data_survival$age_at_tbi,
+                            breaks = c(-Inf, 4, 9, 14, 19, 25),
+                            labels = c("0-4", "5-9", "10-14", "15-19", "20-24"),
+                            right = FALSE)
+
+
+model_9 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life + sex + rcs(age_at_entry, 5) + factor(deprivation) + sud_life + child_maltreatment_flag + # main effects 
+                   tbi_life:agetbi, # interaction
+                 data = data_survival)
+summary(model_9)
+exp(coef(model_9))
+
+model9_summary <- summary(model_9)
+output_table <- model9_summary$coefficients %>%
+  as.data.frame() %>%
+  rownames_to_column("Term") %>%
+  mutate(
+    HR = exp(coef),
+    `Lower CI` = exp(coef - 1.96 * `se(coef)`),
+    `Upper CI` = exp(coef + 1.96 * `se(coef)`)
+  ) %>%
+  select(Term, coef, HR, `Lower CI`, `Upper CI`, `Pr(>|z|)`)
+print(output_table, digits = 3)
+# when e+00 , the exponent is zero and the number is actually as presented
+
+summary_data <- tbi %>%
+  group_by(agetbi) %>%
+  summarise(suicidality_count = sum(endpoint == 1))
+
+plot_count <- ggplot(summary_data, aes(x = agetbi, y = suicidality_count, fill = agetbi)) + 
+  geom_bar(stat = "identity") + 
+  labs(
+    title = "Number of Suicidal Behaviour Events by Age at TBI",
+    x = "Age at TBI",
+    y = "Count of Suicidal Behaviour Events", 
+    fill = "Age at TBI"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = met.brewer("Cassatt1"))
+
+plot_count  
+```
+
+# Set the Outcome: Violent Victimisation
+
+Now, lets assess the risk of violent victimisation within our cohort.
+
+## Data Wrangling
+
+### Assign the Date of Victimisation as the Outcome
+
+```{r}
+# lets look at violent victimisation as the outcome of interest 
+outcome <- "victimisation_date"
+
+# follow-up needs to finish on victimisation date, for those with this event
+data$exit_date <- pmin(data$exit_date, data$victimisation_date, na.rm = TRUE)
+data$exit_dd <- decimal_date(data$exit_date) # create decimal date for date of exit
+data$age_at_exit <- data$exit_dd - data$wob_dd # create age of exit 
+
+data$victim_dd <- decimal_date(data$victimisation_date) # create decimal date for date of victimisation
+
+```
+
+### Break Ties
+
+For some people, the start of follow-up and victimisation event might occur on the same day (ties) in time-to-event setting, this individuals are followed to outcome, and these people would not be considered to be 'exposed' this would underestimate all associations, and outcome should be moved 1 day to "break these ties".
+
+```{r}
+temp <- data
+
+# create a table with all victimisation dates
+# load files from SQL
+
+pedw <- pedw %>%
+  dplyr::select("ALF_PE", "START_DATE", "DIAG_CD_1234")
+
+wlgp <- wlgp %>%
+  dplyr::select("ALF_PE", "EVENT_DT", "EVENT_CD")
+
+adde <- adde %>% 
+  dplyr::select("ALF_PE", "DEATH_DT", "DEATHCAUSE_DIAG_UNDERLYING_CD")
+
+colnames(pedw) <- c("alf", "date", "code")
+colnames(wlgp) <- c("alf", "date", "code")
+colnames(adde) <- c("alf", "date", "code")
+
+combined_data <- bind_rows(pedw, wlgp, adde)
+
+combined_data <- combined_data %>%
+  filter(!is.na(alf))
+
+final_table <- combined_data %>%
+  group_by(alf) %>%
+  mutate(event_number = row_number()) %>%
+  ungroup
+
+final_table <- final_table %>%
+  pivot_wider(
+    id_cols = alf,
+    names_from = event_number, 
+    values_from = c(date, code),
+    names_glue = "event{event_number}_{.value}"
+  )
+
+final_table_long <- final_table %>%
+  pivot_longer(
+    cols = matches("date$"),
+    names_to = "event_type",
+    values_to = "event_date"
+  ) %>%
+  dplyr::select(-contains("code"))
+
+# identify those with 'ties' 
+
+ties <- temp %>%
+  filter(exit_dd - entry_dd == 0.000) %>%
+  dplyr::select(alf, start_date, end_date, tbi_date, victimisation_date, entry_date, exit_date)
+
+ties_joined <- ties %>%
+  left_join(final_table_long, by = "alf")
+
+ties_joined <- ties_joined %>%
+  filter(event_date > victimisation_date & event_date <= end_date)
+
+colnames(ties_joined)
+
+ties_joined <- ties_joined %>%
+  dplyr::group_by(alf) %>%
+  dplyr::summarize(second_victimisation_date = min(event_date, na.rm = TRUE)) %>%
+  dplyr::ungroup()
+
+ties <- ties %>%
+  left_join(ties_joined, by = "alf")
+
+# add the second victimisation date to the temp table
+temp <- temp %>%
+  left_join(ties_joined %>% select(alf, second_victimisation_date), by = "alf")
+
+# to break ties exclude outcome event, however, individuals remain at-risk during follow-up
+temp <- temp %>%
+  mutate(victimisation_date = case_when(
+    victimisation_date > entry_date ~ as.Date(victimisation_date),
+    victimisation_date <= entry_date ~ NA)
+  )
+
+# also for the washout period exclude outcome events within 6 days of study entry / 7 days of the TBI date
+short_fu <- temp %>%
+  filter(as.numeric(difftime(victimisation_date, entry_date, units = "days")) <= 6) %>%
+  dplyr::select(alf, dod, start_date, end_date, tbi_date, tbi_life, victimisation_date)
+
+prop.table(table(short_fu$tbi_life))*100
+
+check <- short_fu %>%
+  filter(dod == victimisation_date) # none of these excluded events had a death recorded on the same day
+
+temp <- temp %>%
+  mutate(victimisation_date = case_when(
+    as.numeric(difftime(victimisation_date, entry_date, units = "days")) > 6 ~ as.Date(victimisation_date),
+    as.numeric(difftime(victimisation_date, entry_date, units = "days")) <= 6 ~ NA)
+  )
+
+# add the next victimisation event during follow-up
+temp <- temp %>%
+  mutate(victimisation_date = case_when(
+    exit_dd - entry_dd == 0.000 ~ as.Date(second_victimisation_date),
+    as.numeric(difftime(victimisation_date, entry_date, units = "days")) <= 6 ~ as.Date(second_victimisation_date),
+    TRUE ~ as.Date(victimisation_date)))
+
+# update victimisation flag 
+temp <- temp %>%
+  mutate(victimisation_life = case_when(
+    is.na(victimisation_date) ~ 0,
+    !is.na(victimisation_date) ~ 1
+  ))
+
+temp <- temp %>%
+  mutate(victim_dd = decimal_date(data$victimisation_date))
+head(temp)
+
+# update exit date
+temp <- temp %>%
+  mutate(exit_date = coalesce(end_date, dod, last_date))
+temp <- temp %>%
+  mutate(exit_date = coalesce(victimisation_date, exit_date))
+temp$exit_dd <- decimal_date(temp$exit_date) # create decimal date for date of exit
+temp$age_at_exit <- temp$exit_dd - temp$wob_dd 
+
+rm(list = c("adde", "combined_data", "final_table", "final_table_long", "negativefu", "pedw", "short_fu", "ties", "wlgp", "zerofu"))  
+
+# X individual who was born after study entry
+# alter manually, change start up to wob
+```
+
+### Creating the Fail and Outcome Variables
+
+Creating a "fail" variable for censoring where 0 = censored (they exit on the last date of the study period 16 Oct 2023); 1 = event; 80 = study exit wasn't October 16 2023; 90 = death; 91 = death & diagnosis on the same day.
+
+```{r}
+
+temp$fail <- (90 * (!is.na(temp$dod) & (temp$dod == temp$exit_date))) + 
+  (80 * (!is.na(temp$exit_date) & (temp$exit_date != temp$last_date) & is.na(temp$dod) & is.na(temp$victimisation_date))) +
+  (01 * (!is.na(temp$victimisation_date) & (temp$victimisation_date <= temp$exit_date)))
+
+table(temp$fail)
+
+# create an "outcome" column for victimisation during follow up, where fail == 1 or fail == 91
+temp <- temp %>%
+  mutate(outcome = if_else(fail == 1 | fail == 91, 1, 0))
+
+table(temp$outcome)
+table(!is.na(temp$victimisation_date), temp$outcome) # checking that everyone with an event date had an 'outcome'
+
+```
+
+### Specify TBI Recurrence (Time-Varying Covariate)
+
+```{r}
+# create a table with all TBI dates (in secondary records)
+# load files from SQL
+
+edds_unspec <- edds_unspec %>%
+  dplyr::select("ALF_PE", "ADMIN_ARR_DT")
+edds_unspec$severity <- "unspecified"
+
+edds_mild <- edds_mild %>%
+  dplyr::select("ALF_PE", "ADMIN_ARR_DT")
+edds_mild$severity <- "mild"
+
+edds_mod <- edds_mod %>%
+  dplyr::select("ALF_PE", "ADMIN_ARR_DT")
+edds_mod$severity <- "moderate-severe"
+
+pedw_unspec <- pedw_unspec %>%
+  dplyr::select("ALF_PE", "START_DATE")
+pedw_unspec$severity <- "unspecified"
+
+pedw_mild <- pedw_mild %>%
+  dplyr::select("ALF_PE", "START_DATE")
+pedw_mild$severity <- "mild"
+
+pedw_mod <- pedw_mod %>%
+  dplyr::select("ALF_PE", "START_DATE")
+pedw_mod$severity <- "moderate-severe"
+
+colnames(edds_unspec) <- c("alf", "date", "severity")
+colnames(edds_mild) <- c("alf", "date", "severity")
+colnames(edds_mod) <- c("alf", "date", "severity")
+colnames(pedw_unspec) <- c("alf", "date", "severity")
+colnames(pedw_mild) <- c("alf", "date", "severity")
+colnames(pedw_mod) <- c("alf", "date", "severity")
+
+# link with first TBI already identified (primary and secondary records)
+# load files from SQL
+
+tbi <- tbi %>%
+  dplyr::select("ALF_PE", "STUDY_DATE")
+
+colnames(tbi) <- c("alf", "date")
+
+combined_data <- bind_rows(edds_unspec, edds_mild, edds_mod, pedw_unspec, pedw_mild, pedw_mod, tbi)
+
+# clean environment
+rm(list = c("edds_mild", "edds_mod", "edds_unspec", "pedw_mild", "pedw_mod", "pedw_unspec"))
+
+combined_data <- combined_data %>%
+  filter(!is.na(alf))
+
+final_table <- combined_data %>%
+  group_by(alf) %>%
+  mutate(event_number = row_number()) %>%
+  ungroup
+
+final_table <- final_table %>%
+  pivot_wider(
+    id_cols = alf,
+    names_from = event_number, 
+    values_from = c(date),
+    names_glue = "event{event_number}_{.value}"
+  )
+
+final_table_long <- final_table %>%
+  pivot_longer(
+    cols = matches("date$"),
+    names_to = "event_type",
+    values_to = "event_date"
+  ) %>%
+  dplyr::select(-contains("code"))
+
+final_table_long <- final_table_long %>%
+  filter(!is.na(event_date))
+
+tbi_recurrent_list <- final_table_long
+
+# ensure only the people identified with a TBI under age 25y are included
+tbi_recurrent_list <- tbi_recurrent_list %>% 
+  filter(alf %in% tbi$alf)
+num_unique_alf <- n_distinct(tbi_recurrent_list$alf)
+num_unique_alf 
+
+# ensure only events during the study period (for each person) are included
+recurrent_merged <- left_join(tbi_recurrent_list, temp, by = "alf")
+
+# review dates outside of the study period 
+tbi_remove <- recurrent_merged %>%
+  filter(event_date < start_date | event_date > end_date)
+
+tbi_remove <- tbi_remove %>%
+  select("alf", "event_type", "event_date", "start_date", "end_date")
+
+# remove the dates outside the study period
+recurrent_merged <- recurrent_merged %>%
+  filter(event_date >= start_date | event_date <= end_date)
+
+tbi_recurrent_list <- recurrent_merged %>%
+  dplyr::select("alf", "event_type", "event_date", "start_date", "end_date")
+
+tbi_recurrent_list <- recurrent_merged %>%
+  dplyr::select("alf", "event_type", "event_date")
+
+# only one tbi per date per individual
+duplicates <- tbi_recurrent_list %>%
+  group_by(alf, event_date) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+tbi_recurrent_list <- tbi_recurrent_list %>%
+  arrange(alf, event_date) %>%
+  distinct(alf, event_date, .keep_all = TRUE)
+
+# convert event_date to numeric 
+## the TBI date should be expressed relative to the start of follow-up
+## change_time is time since first TBI
+tbi_recurrent_list <- tbi_recurrent_list %>%
+  left_join(temp %>% dplyr::select(alf, entry_date), by = "alf") %>%
+  mutate(change_time = as.numeric(event_date - entry_date))
+
+tbi_recurrent_list <- tbi_recurrent_list %>%
+  mutate(change_time = case_when(
+    change_time < 0 ~ 0,
+    change_time > 0 ~ change_time
+  ))
+
+# arrange and create num_tbi variable
+tbi_recurrent_list <- tbi_recurrent_list %>%
+  arrange(alf, event_date) %>% # events are ordered by alf and date
+  group_by(alf) %>% # group by individual
+  mutate(
+    num_tbi = row_number()
+  ) %>%
+  ungroup()
+
+#summary(tbi_recurrent_list$num_tbi)
+```
+
+### Prepare for Time to Event Analysis
+
+Start of follow-up: date of TBI event + 1 (cases), study entry + 1 (controls).
+
+```{r}
+# timescale: time since start of follow-up (in years)
+# create new variables: id (~alf), tstart (~entry_dd), tstop (~exit_dd) and endpoint (~outcome)
+
+temp2 <- temp %>%
+  mutate(s_day = entry_dd - entry_dd) %>%
+  mutate(follow_up = exit_dd - entry_dd)
+
+# create s_day to assign as tstart (s_day = 0 so can something to subtract from)
+
+summary(temp2$follow_up)
+
+zero_fu <- temp2 %>%
+  filter(follow_up == 0.000) %>%
+  dplyr::select("alf", "start_date", "end_date", "tbi_date", "tbi_life", "victimisation_date", "entry_date", "exit_date", "exit_dd", "entry_dd", "s_day", "follow_up") # have effectively broken ties
+
+# tmerge function help creates start,stop datasets with multiple intervals per participants
+temp2 <- tmerge(temp2, temp2, id = alf, tstart = s_day, tstop = follow_up)
+temp2 <- tmerge(temp2, temp2, id = alf, endpoint = event(tstop, outcome))
+
+# use tmerge to add the time-varying covariate of tbi (recurrent)
+temp3 <- tmerge(
+  temp2, # the previous `tmerge()` output, an initialised dataset with tstart/stop intervals and event information
+  tbi_recurrent_list,  # dataset with time-varying information
+  id = alf, # identifier column
+  tbi_injuries = tdc(change_time, num_tbi) # time-dependent covariate
+) ## if event_date > tstop, the covariate is not added (as it has been censored)
+
+temp3 <- temp3 %>%
+  mutate(expo_tbi = ifelse(diagnosis == 'tbi', TRUE, FALSE))
+
+temp3 <- temp3 %>%
+  mutate(time = tstop - tstart)
+
+summary(temp3$tbi_injuries)
+temp3 <- temp3 %>% 
+  mutate(tbi_injuries = if_else(tbi_life == 0 & !is.na(tbi_injuries), NA, tbi_injuries))
+
+# small tweaks to temp2 
+temp2 <- temp2 %>%
+  mutate(expo_tbi = ifelse(diagnosis == 'tbi', TRUE, FALSE))
+
+temp2 <- temp2 %>%
+  mutate(time = tstop - tstart)
+
+## add binary recurrence variable 
+tbi_recurr <- tbi_recurrent_list %>%
+  group_by(alf) %>%
+  summarise(num_tbi = max(num_tbi, na.rm = TRUE)) 
+
+temp2 <- temp2 %>%
+  left_join(tbi_recurr, by = "alf")
+
+temp2 <- temp2 %>% 
+  mutate(num_tbi = if_else(tbi_life == 0 & !is.na(num_tbi), NA, num_tbi))
+
+temp2 <- temp2 %>% 
+  mutate(recurrent_tbi_victimisation = case_when(
+    num_tbi == 1 ~ 0,
+    num_tbi >= 2 ~ 1
+  )) # NA if non-TBI, 0 if 1 TBI, 1 if recurrent TBI
+
+# change num_tbi to the person with one tbi however this is a first tbi and after 25
+
+```
+
+### Save Cleaned Victimisation Data
+
+```{r}
+data_survival <- temp2
+
+data_tdc <- temp3
+
+rm(list =c("data", "temp", "temp2", "ties_joined", "zero_fu")) # remove dfs
+```
+
+## Descriptive Statistics
+
+Descriptive statistics of violent victimisation as later disorder.
+
+```{r}
+## persons at risk of violent victimisation during follow-up, overall and by sex
+nrow(data_survival) 
+table(data_survival$sex) 
+table(data_survival$diagnosis)
+table(data_survival$diagnosis, data_survival$sex) 
+
+## new cases of violent victimisation during follow-up, overall and by sex
+nrow(data_survival[data_survival$endpoint==1, ]) 
+table(data_survival[data_survival$endpoint==1, "sex"]) 
+table(data_survival[data_survival$endpoint==1, "diagnosis"]) 
+table(data_survival[data_survival$endpoint==1, "diagnosis"], data_survival[data_survival$endpoint==1, "sex"]) 
+
+# total exposure 
+table(data_survival$tbi_life) 
+table(data_survival$tbi_severity) 
+table(data_survival$tbi_severity_binary)
+table(data_survival$recurrent_tbi_victimisation)
+data_survival %>% count(num_tbi) 
+
+data_survival$age_at_victim <- data_survival$victim_dd - data_survival$wob_dd
+str(data_survival$age_at_victim)
+
+data_survival$age_at_tbi <- decimal_date(data_survival$tbi_date) - decimal_date(data_survival$wob)
+data_survival$age_at_tbi <- as.numeric(data_survival$age_at_tbi)
+
+# age at exposure
+mild <- data_survival %>%
+  filter(tbi_severity == "probable mild")
+summary(mild$age_at_tbi) 
+
+mod_sev <- data_survival %>%
+  filter(tbi_severity == "probable moderate-severe")
+summary(mod_sev$age_at_tbi) 
+
+tbi <- data_survival %>%
+  filter(diagnosis == "tbi")
+summary(tbi$age_at_tbi) 
+
+no_tbi <- data_survival %>%
+  filter(diagnosis == 'no tbi')
+
+## information on follow-up
+person_years_fu <- sum(data_survival$person_time_days) / 365.24 
+
+summary(data_survival$time) 
+sd(data_survival$time) 
+
+summary(tbi$time) 
+sd(tbi$time) 
+
+summary(no_tbi$time) 
+sd(no_tbi$time) 
+
+sum(data_survival$time) 
+sum(tbi$time)
+sum(no_tbi$time) 
+```
+
+```{r}
+# sex descript
+table(data_survival$sex)
+prop.table(table(data_survival$sex))*100 
+
+# birth year descript
+assign_decade <- function(week_date) {
+  year <- year(week_date)
+  decade_start <- floor((year - 1)/10) *10 + 1
+  decade_end <- decade_start + 9
+  return(paste(decade_start, "-", decade_end))
+}
+
+decade_counts <- data_survival %>%
+  mutate(decade = assign_decade(wob)) %>%
+  group_by(decade) %>%
+  summarise(
+    count = n(),
+    died = sum(!is.na(dod))) %>%
+  mutate(
+    percent = (count / sum(count))*100,
+    died_percent = (died / count)*100
+  ) %>%
+  mutate(
+    percent = number(percent, accuaracy = 0.1),
+    died_percent = number(died_percent, accuaracy = 0.1)
+  ) %>%
+  arrange(decade)
+
+# age at start and end of follow-up descript
+summary(tbi$age_at_entry)
+summary(no_tbi$age_at_entry)
+
+summary(tbi$age_at_exit) 
+summary(no_tbi$age_at_exit)
+
+
+# descriptive statistics of covariates: sex, high deprivation, adverse childhood experience (lifetime), psychiatric conditions (lifetime), neurological conditions (lifetime), substance misuse (lifetime)
+
+# sample characteristics
+data_survival$agebaseline <- cut(data_survival$age_at_entry,
+                  breaks = c(-Inf, 4, 9, 14, 19, 25),
+                  labels = c("0-4", "5-9", "10-14", "15-19", "20-24"),
+                  right = FALSE)
+
+datasummary_crosstab(agebaseline ~ diagnosis, data = data_survival)
+
+datasummary_crosstab(deprivation ~ diagnosis, data = data_survival)
+
+data_descriptive <- data_survival %>%
+  mutate(sex = ifelse(sex == 0, 'male', 'female'),
+         'Lifetime substance misuse' = ifelse(!is.na(sud_date), 'yes', 'no'),
+         'Lifetime psychiatric condition' = ifelse(psychiatric_life == 1, 'yes', 'no'),
+         'Lifetime neurological condition' = ifelse(neurological_life == 1, 'yes', 'no'),
+         'Childhood maltreatment' = ifelse(child_maltreatment_flag == 1, 'yes', 'no'),
+         'Violent victimisation' = ifelse(endpoint == 1, 'yes', 'no')) %>%
+  select(diagnosis, 
+         tbi_severity = tbi_severity,
+         sex,
+         'Lifetime substance misuse', 
+         'Lifetime psychiatric condition',
+         'Lifetime neurological condition',
+         'Childhood maltreatment')
+
+data_descriptive <- data_descriptive %>%
+  select(diagnosis, tbi_severity, sex, 'Lifetime substance misuse', 'Lifetime psychiatric condition', 
+         'Lifetime neurological condition', 'Childhood maltreatment')
+
+datasummary_balance(~diagnosis,
+                    data = data_descriptive)
+
+data_psych <- data_survival %>%
+  mutate('ED Psychiatric' = ifelse(ed_psych_life == 1, 'yes', 'no'),
+         'SMI' =ifelse(smi_life == 1, 'yes', 'no'),
+         'Anxiety' =ifelse(anxiety_life == 1, 'yes', 'no'),
+         'Depression' =ifelse(depression_life == 1, 'yes', 'no'),
+         'ADHD' = ifelse(adhd_life == 1, 'yes', 'no'),
+         'Conduct disorder' = ifelse(conduct_disorder_life == 1, 'yes', 'no')) %>%
+  select(diagnosis, 
+         tbi_severity, 
+         'ED Psychiatric', 
+         'SMI',
+         'Anxiety',
+         'Depression', 
+         'ADHD', 
+         'Conduct disorder')
+
+datasummary_balance(~diagnosis,
+                    data = data_psych)
+
+data_neuro <- data_survival %>%
+  mutate('ED Neurological' = ifelse(ed_neuro_life == 1, 'yes', 'no'),
+         'Epilepsy' =ifelse(epilepsy_life == 1, 'yes', 'no'),
+         'Migraine' =ifelse(migraine_life == 1, 'yes', 'no'),
+         'Cerebral palsy' = ifelse(cerebral_palsy_life == 1, 'yes', 'no')) %>%
+  select(diagnosis, 
+         tbi_severity,
+         'ED Neurological',
+         'Epilepsy',
+         'Migraine',
+         'Cerebral palsy')
+
+datasummary_balance(~diagnosis,
+                    data = data_neuro)
+
+datasummary_crosstab(agebaseline ~ tbi_severity, data = data_survival)
+
+datasummary_crosstab(deprivation ~ tbi_severity, data = data_survival)
+
+datasummary_balance(~tbi_severity,
+                    data = data_descriptive) 
+
+datasummary_balance(~tbi_severity,
+                    data = data_neuro)
+
+# prior psychiatric and neurological disorders descript
+tbi_descriptive <- tbi %>%
+  mutate(sex = ifelse(sex == 0, 'male', 'female'),
+         deprivation = ifelse(deprivation == 5, 'high deprivation', 'moderate-low deprivation'),
+         'substance misuse' = ifelse(pretbi_sud == 1, 'yes', 'no'),
+         'psychiatric comorbidity' = ifelse(pretbi_psychiatric == 1, 'yes', 'no'),
+         'neurological comorbidity' = ifelse(pretbi_neurological == 1, 'yes', 'no'),
+         'violent victimisation' = ifelse(endpoint == 1, 'yes', 'no')) %>%
+  select(diagnosis, 
+         tbi_severity = tbi_severity,
+         sex,
+         deprivation,
+         'substance misuse', 
+         'psychiatric comorbidity',
+         'neurological comorbidity',
+         'violent victimisation')
+
+tbi_descriptive <- tbi_descriptive %>%
+  select(diagnosis, tbi_severity, 'substance misuse', 'psychiatric comorbidity', 
+         'neurological comorbidity')
+
+datasummary_balance(~diagnosis,
+                    data = tbi_descriptive, 
+                    title = "Pre-TBI comorbidities descriptives")
+
+datasummary_balance(~tbi_severity,
+                    data = tbi_descriptive, 
+                    title = "Pre-TBI comorbidities descriptives")
+
+# association between TBI (exposure) and violent victimisation (outcome)
+table(data_survival$tbi_life, data_survival$endpoint)
+prop.table(table(data_survival$tbi_life, data_survival$endpoint))*100 
+
+table(data_survival$tbi_severity, data_survival$endpoint) # of those exposed to probable mild TBI 2261 were victimised, 209 of those probable mod-severe TBI were victimised
+prop.table(table(data_survival$tbi_severity, data_survival$endpoint))*100
+
+data_descriptive <- data_survival %>%
+  mutate(sex = ifelse(sex == 0, 'male', 'female'),
+         deprivation = ifelse(deprivation == 5, 'high deprivation', 'moderate-low deprivation'),
+         'Lifetime substance misuse' = ifelse(!is.na(sud_date), 'yes', 'no'),
+         'Lifetime psychiatric comorbidity' = ifelse(psychiatric_life == 1, 'yes', 'no'),
+         'Lifetime neurological comorbidity' = ifelse(neurological_life == 1, 'yes', 'no'),
+         'Childhood maltreatment' = ifelse(child_maltreatment_flag == 1, 'yes', 'no'),
+         'violent victimisation' = ifelse(endpoint == 1, 'yes', 'no')) %>%
+  select(diagnosis, 
+         tbi_severity = tbi_severity,
+         sex,
+         deprivation,
+         'Lifetime substance misuse', 
+         'Lifetime psychiatric comorbidity',
+         'Lifetime neurological comorbidity',
+         'Childhood maltreatment',
+         'violent victimisation')
+
+data_outcome <- data_descriptive %>%
+  select(diagnosis, tbi_severity, 'violent victimisation')
+
+datasummary_balance(~diagnosis,
+                    data = data_outcome, 
+                    title = "Violent Victimisation Events")
+
+datasummary_balance(~tbi_severity,
+                    data = data_outcome, 
+                    title = "Violent Victimisation Events")
+
+
+summary(data_survival$age_at_victim) 
+summary(mild$age_at_victim) 
+summary(mod_sev$age_at_victim) 
+summary(tbi$age_at_victim) 
+summary(no_tbi$age_at_victim) 
+
+# number censored during follow-up
+censored <- data_survival %>%
+  group_by(alf) %>%
+  arrange(tstop) %>%
+  filter(row_number() ==n())
+table(censored$fail,censored$endpoint)
+
+```
+
+## Cumulative Incidence and Kaplan-Meier Curves
+
+```{r}
+# cumulative incidence is equal to 1 - survival
+
+fit <- survfit( Surv(time, endpoint) ~ diagnosis, data = data_survival)
+summary(fit, times = c(0, 1, 5, 10, 14, 15)) # fit time based on follow-up (and max follow-up)
+summary(fit, times = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15))
+
+# incidence is inverse of survival (therefore 1 - survival)
+plot <- ggsurvplot(fit, conf.int = TRUE, risk.table = TRUE, cumevents = TRUE, cumcensor = TRUE,
+                   #pval = TRUE,
+                   #pval.coord = c(0.05, 2.5),
+                   fun = function(y) (1-y)*100,
+                   xlab = 'Time (in years)',
+                   xlim = c(0,12),
+                   break.x.by = 3,
+                   ylab = 'Cumulative incidence (in %)', 
+                   censor = FALSE, 
+                   
+                   legend.title = "Exposure", 
+                   legend.labs = c("No TBI diagnosis", "TBI diagnosis"),
+                   
+                   smooth = TRUE,
+                   
+                   tables.height = 0.2,
+                   tables.theme = theme_cleantable(),
+                   
+                   palette = c('cadetblue3', 'lightpink3')
+)
+
+km_plot <- plot$plot
+risk_table <- plot$table
+cum_events <- plot$cumevents
+cum_censor <- plot$ncensor.plot
+
+plot2 <- cowplot::plot_grid(
+  km_plot,
+  risk_table,
+  cum_events, 
+  cum_censor,
+  ncol = 1, 
+  align = "v",
+  rel_heights = c(0.45, 0.15, 0.15, 0.15)
+)
+
+padded_plot <- ggdraw() + 
+  draw_plot(plot2, x = 0.05, y = 0.05, width = 0.9, height = 0.9)
+
+padded_plot
+
+plot <- ggsurvplot(fit, conf.int = TRUE, risk.table = FALSE, cumevents = FALSE, cumcensor = FALSE,
+                   fun = function(y) (1-y)*100,
+                   xlab = 'Time (in years)',
+                   xlim = c(0,12),
+                   break.x.by = 3,
+                   ylab = 'Cumulative incidence (in %)',
+                   ylim = c(0,15),
+                   break.y.by = 3,
+                   censor = FALSE, 
+                   
+                   legend.title = "Exposure", 
+                   legend.labs = c("No TBI diagnosis", "TBI diagnosis"),
+                   
+                   smooth = TRUE,
+                   
+                   palette = c('cadetblue3', 'lightpink3'),
+) 
+
+plot
+
+
+# create a smoothed KM curve that aligns with SAIL output review policy
+data <- data_survival
+data <- data %>%
+  mutate(diagnosis = case_when(
+    diagnosis == "tbi" ~ "TBI diagnosis",
+    diagnosis == "no tbi" ~ "No TBI diagnosis"
+  ))
+colnames(data)[colnames(data) == "diagnosis"] <- "Exposure"
+
+fit <- survfit( Surv(time, endpoint) ~ Exposure, data = data)
+
+# convert the survival object to a tidy frame
+surv_data <- surv_summary(fit, data = data)
+
+# transform survival probabilities to cumulative incidence
+surv_data$incidence <- (1-surv_data$surv) * 100 
+
+surv_data <- surv_data %>%
+  mutate(strata = case_when(
+    strata == "Exposure=No TBI diagnosis" ~ "No TBI diagnosis",
+    strata == "Exposure=TBI diagnosis" ~ "TBI diagnosis"
+  ))
+
+# plot KM curves with smoothing
+plot_smoothed <- ggplot(surv_data, aes(x = time, y = incidence, color = strata))+
+  #geom_step(aes(linetype = strata), size = 0.8) + # original KM curve, comment this line out if happy with the smoothing, uncomment to see the steps
+  geom_smooth(method = "loess", span = 0.3, se = FALSE, aes(fill = strata), alpha = 0.2)+
+  labs(#title = "Cumulative incidence of violent victimisation over time from start of follow-up",
+    x = 'Time (in years)',
+    y = 'Cumulative incidence (in %)',
+    color = "Exposure",
+    linetype = "Exposure",
+    fill = "Exposure") +
+  scale_y_continuous(limits = c(0, 4.5)) + # scales y axis from 0 to 20 you can adjust as you like. +
+  scale_x_continuous(limits = c(0, 14), breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) +
+  theme_cowplot(12)
+
+plot_smoothed
+```
+
+## Cox Regressions
+
+### Model Assumptions
+
+Assess non-linearity of continuous predictors.
+
+```{r}
+# age at baseline
+agebaseline3_spline <- rcs(data_survival$age_at_entry,3)
+agebaseline4_spline <- rcs(data_survival$age_at_entry,4)
+agebaseline5_spline <- rcs(data_survival$age_at_entry,5)
+
+cox_baseline3 <- coxph(Surv(tstart,tstop, endpoint) ~ agebaseline3_spline, data = data_survival, ties = "breslow")
+cox_baseline3
+lp_baseline3 <- predict (cox_baseline3)
+
+cox_baseline4 <- coxph(Surv(tstart,tstop, endpoint) ~ agebaseline4_spline, data = data_survival, ties = "breslow")
+cox_baseline4
+lp_baseline4 <- predict (cox_baseline4)
+
+cox_baseline5 <- coxph(Surv(tstart,tstop, endpoint) ~ agebaseline5_spline, data = data_survival, ties = "breslow")
+cox_baseline5
+lp_baseline5 <- predict (cox_baseline5)
+
+data_splines <- data.frame(data_survival$age_at_entry,lp_baseline3, lp_baseline4, lp_baseline5)
+data_splines_m <- melt(data_splines,id.vars = 'data_survival.age_at_entry')
+plot_splines <- ggplot(data_splines_m, aes(x=data_survival.age_at_entry, y=value, colour=variable)) + geom_line() + scale_colour_manual(labels = c("3 knots", "4 knots", "5 knots"), values = c('cadetblue3', "darkseagreen", "deeppink3")) + theme_bw()
+plot_splines + labs(x = "Age at Baseline", y = "Linear prediction", color = "") + theme(legend.position.inside = c(0.8,0.2))
+
+
+AIC(cox_baseline3) 
+BIC(cox_baseline3) 
+
+AIC(cox_baseline4) 
+BIC(cox_baseline4) 
+
+AIC(cox_baseline5) 
+BIC(cox_baseline5) 
+
+# age at first TBI
+cox_age_tbi <- coxph(Surv(tstart,tstop, endpoint) ~ age_at_tbi, data = tbi)
+martingale_residuals <- resid(cox_age_tbi, type = "martingale")
+
+plot(tbi$age_at_tbi, martingale_residuals, pch = 20, col = "cadetblue4",
+     xlab = "Age at first TBI", ylab = "Martingale Residual", 
+     main = "Residuals vs. TBI Age")
+
+abline(h = 0)
+lines(smooth.spline(tbi$cox_age_tbi, martingale_residuals, df = 7), lty = 2, lwd = 2)
+dev.off()
+
+ageTBI3_spline <- rcs(tbi$age_at_tbi,3)
+ageTBI4_spline <- rcs(tbi$age_at_tbi,4)
+ageTBI5_spline <- rcs(tbi$age_at_tbi,5)
+
+cox_ageTBI3 <- coxph(Surv(tstart,tstop, endpoint) ~ ageTBI3_spline, data = tbi, ties = "breslow")
+cox_ageTBI3
+lp_ageTBI3 <- predict (cox_ageTBI3)
+
+cox_ageTBI4 <- coxph(Surv(tstart,tstop, endpoint) ~ ageTBI4_spline, data = tbi, ties = "breslow")
+cox_ageTBI4
+lp_ageTBI4 <- predict (cox_ageTBI4)
+
+cox_ageTBI5 <- coxph(Surv(tstart,tstop, endpoint) ~ ageTBI5_spline, data = tbi, ties = "breslow")
+cox_ageTBI5
+lp_ageTBI5 <- predict (cox_ageTBI5)
+
+pdf("S:/1478 - Risk of violence perpetration and victimisation among individuals with traum/output/epi/victimisation/plots/rcs/ageTBI-splines-new.pdf")
+data_splines <- data.frame(tbi$age_at_tbi,lp_ageTBI3, lp_ageTBI4, lp_ageTBI5)
+data_splines_m <- melt(data_splines,id.vars = 'tbi.age_at_tbi')
+plot_splines <- ggplot(data_splines_m, aes(x=tbi.age_at_tbi, y=value, colour=variable)) + geom_line() + scale_colour_manual(labels = c("3 knots", "4 knots", "5 knots"), values = c('cadetblue3', "darkseagreen", "deeppink3")) + theme_bw()
+plot_splines + labs(x = "Age at first TBI", y = "Linear prediction", color = "") + theme(legend.position.inside = c(0.8,0.2))
+dev.off()
+
+AIC(cox_ageTBI3) 
+BIC(cox_ageTBI3) 
+
+AIC(cox_ageTBI4) 
+BIC(cox_ageTBI4) 
+
+AIC(cox_ageTBI5) 
+BIC(cox_ageTBI5) 
+
+tbi$agetbi <- cut(tbi$age_at_tbi,
+                  breaks = c(-Inf, 4, 9, 14, 19, 25),
+                  labels = c("0-4", "5-9", "10-14", "15-19", "20-24"),
+                  right = FALSE)
+
+```
+
+Proportional hazards assumption
+
+```{r}
+# check: is there a pattern with time? a systematic departure from a horizontal line is indicative of non-proportional hazards
+## multi-level factors will account for banding
+## appears to be proportional hazards
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~sex, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("psychiatric disorder: no", "psychiatric disorder: yes"),
+                        legend.title = "",
+                        legend = c(0.3,0.95),
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p1 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~deprivation, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', "darkseagreen", "indianred4", "deeppink3", 'lightpink3'),
+                        legend.labs = c("WIMD 5: least deprived", "WIMD 4", "WIMD 3", "WIMD 2", "WIMD 1: most deprived"),
+                        legend.title = "",
+                        legend = c(0.3,0.87), 
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p2 <- smooth_plot + # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) +
+  scale_color_manual(values = c('cadetblue3', "darkseagreen", "indianred4", "deeppink3", 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~child_maltreatment_flag, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("child maltreatment: no", "child maltreatment: yes"),
+                        legend.title = "",
+                        legend = c(0.3,0.95),
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p3 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~psychiatric_life, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("psychiatric disorder: no", "psychiatric disorder: yes"),
+                        legend.title = "",
+                        legend = c(0.3,0.95),
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p4 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~neurological_life, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("neurological disorder: no", "neurological disorder: yes"),
+                        legend.title = "",
+                        legend = c(0.3,0.95), 
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p5 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~sud_life, data = data_survival)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("sud: no", "sud: yes"),
+                        legend.title = "",
+                        legend = c(0.3,0.95), 
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p6 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~tbi_severity, data = tbi)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', 'lightpink3'), 
+                        legend.labs = c("severity: probable mild", "severity: probable moderate-severe"),
+                        legend.title = "",
+                        legend = c(0.3,0.95), 
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p7 <- smooth_plot +  # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) + 
+  scale_color_manual(values = c('cadetblue3', 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+
+fit <- survfit(Surv(tstart,tstop, endpoint)~agetbi, data = tbi)
+surv_plot <- ggsurvplot(fit,
+                        fun = "cloglog",
+                        palette = c('cadetblue3', "darkseagreen", "indianred4", "deeppink3", 'lightpink3'),
+                        legend.labs = c("age: 0-4y", "age: 5-9y", "age: 10-14y", "age: 15-19y", "age: 20-24y"),
+                        legend.title = "",
+                        legend = c(0.3,0.87), 
+                        censor = FALSE
+)
+
+smooth_plot <- surv_plot$plot
+smooth_plot$layers <- smooth_plot$layers[-1]
+
+p9 <- smooth_plot + # smooth the plot
+  geom_smooth(method = "loess", 
+              span = 0.3, 
+              se = FALSE, 
+              alpha = 0.2, 
+              aes(color = strata),
+              linetype = "solid",
+              linewidth = 2, ) +
+  scale_color_manual(values = c('cadetblue3', "darkseagreen", "indianred4", "deeppink3", 'lightpink3')) + 
+  labs(
+    x = 'Time',
+    y = 'Log(-log(Survival Probability))')
+
+
+combined_plot <- cowplot::plot_grid(p1, p2, p3, p4, p5, p6, p7, p9, ncol = 3)
+
+combined_plot  
+
+
+rm(list =c("p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "combined_plot"))
+
+## the log-minus-log plot is used to check proportional hazards, if the lines for different groups are approximately parallel, proportional hazards assumption holds. If the lines cross or are not parallel, it suggests that the proportional hazards assumption might be violated
+
+```
+
+### Univariate Models
+
+```{r}
+cox_sex <- coxph(Surv(tstart,tstop, endpoint)~ sex, data = data_survival)
+cox_deprivation <- coxph(Surv(tstart,tstop, endpoint)~factor(deprivation), data = data_survival)
+cox_cpr <- coxph(Surv(tstart,tstop, endpoint)~child_maltreatment_flag, data = data_survival)
+cox_psych <- coxph(Surv(tstart,tstop, endpoint)~psychiatric_life, data = data_survival)
+cox_neuro <- coxph(Surv(tstart,tstop, endpoint)~neurological_life, data = data_survival)
+cox_sud <- coxph(Surv(tstart,tstop, endpoint)~sud_life, data = data_survival)
+
+  # tbi only cohort 
+  cox_sex <- coxph(Surv(tstart,tstop, endpoint)~ sex, data = tbi)
+  cox_deprivation <- coxph(Surv(tstart,tstop, endpoint)~factor(deprivation), data = tbi)
+  cox_cpr <- coxph(Surv(tstart,tstop, endpoint)~child_maltreatment_flag, data = tbi)
+  cox_psych <- coxph(Surv(tstart,tstop, endpoint)~psychiatric_life, data = tbi)
+  cox_neuro <- coxph(Surv(tstart,tstop, endpoint)~neurological_life, data = tbi)
+  cox_sud <- coxph(Surv(tstart,tstop, endpoint)~sud_life, data = tbi)
+  cox_sev <- coxph(Surv(tstart,tstop, endpoint)~tbi_severity_binary, data = tbi)
+  cox_recurr <- coxph(Surv(tstart,tstop, endpoint)~tbi_recurrence_victim, data = tbi)
+  cox_agetbi <- coxph(Surv(tstart,tstop, endpoint)~factor(agetbi), data = tbi)
+
+  # controls only cohort 
+  cox_sex <- coxph(Surv(tstart,tstop, endpoint)~ sex, data = no_tbi)
+  cox_deprivation <- coxph(Surv(tstart,tstop, endpoint)~factor(deprivation), data = no_tbi)
+  cox_cpr <- coxph(Surv(tstart,tstop, endpoint)~child_maltreatment_flag, data = no_tbi)
+  cox_psych <- coxph(Surv(tstart,tstop, endpoint)~psychiatric_life, data = no_tbi)
+  cox_neuro <- coxph(Surv(tstart,tstop, endpoint)~neurological_life, data = no_tbi)
+  cox_sud <- coxph(Surv(tstart,tstop, endpoint)~sud_life, data = no_tbi)
+
+```
+
+### Multivariate Models
+
+```{r}
+# model 1: minimially adjusted (sex and birth date)
+model_1 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life + sex + rcs(age_at_entry, 4), data = data_survival)
+summary(model_1)
+# wald statistic (z coloumn) evaluates whether the beta coefficient of a given variable is statistically significant from 0 | diagnosis, sex and wob have stat sig coefficients
+# regression coefficients (coef), with a positive sign signifying that the hazard is higher | victimisation is higher for those diagnosed with TBI and for women, hazard risk decreases with age (wob)
+# global statistical significance of the model (likelihood ratio test, wald test, logrank test) | sig model 
+
+print(paste0("HR = ", format(exp(summary(model_1)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_1)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_1)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+# model 2: model 1 + deprivation 
+model_2 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life + sex + rcs(age_at_entry, 4) + factor(deprivation), data = data_survival)
+summary(model_2)
+
+print(paste0("HR = ", format(exp(summary(model_2)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_2)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_2)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+
+# model 3: model 2 + SUD
+model_3 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life + sex + rcs(age_at_entry, 4) + factor(deprivation) + sud_life, data = data_survival)
+summary(model_3)
+
+print(paste0("HR = ", format(exp(summary(model_3)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_3)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_3)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+# model 4: model 3 + childhood maltreatment
+model_4 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life + sex + rcs(age_at_entry, 4) + factor(deprivation) + sud_life + child_maltreatment_flag, data = data_survival)
+summary(model_4)
+
+print(paste0("HR = ", format(exp(summary(model_4)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_4)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_4)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+# risk factors (and their HR) in the final multivariable model
+result <- summary(model_4)
+summary_table <- data.frame(
+  Covariate = rownames(result$coefficients),
+  HR = result$coefficients[, "exp(coef)"],
+  `Lower 95% CI` = result$conf.int[, "lower .95"],
+  `Upper 95% CI` = result$conf.int[, "upper .95"],
+  `p-value` = result$coefficients[, "Pr(>|z|)"]
+)
+
+print(summary_table)
+```
+
+### Stratified Analyses
+
+```{r}
+# the * operator between tbi_life and psychiatric_life creates an interaction term, meaning the model will estimate separate effects for psychiatric_life == 0 and == 1
+# the lincom() command produces a HR for each strata
+# therefore, syntac-wise is it an interaction term, but this enables us to run a stratified analysis
+table(data_survival$psychiatric_life)
+table(data_survival[data_survival$endpoint==1, "psychiatric_life"])
+
+# strata: psychiatric conditions on fully adjusted model
+model_5 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life * psychiatric_life + sex + rcs(age_at_entry, 4) + factor(deprivation) + sud_life + child_maltreatment_flag, data = data_survival)
+
+lincom(model_5, c("tbi_life"),eform = TRUE)
+
+lincom(model_5, c("tbi_life + tbi_life:psychiatric_life"),eform = TRUE)
+
+# strata: neurological conditions on fully adjusted model
+table(data_survival$neurological_life) 
+table(data_survival[data_survival$endpoint==1, "neurological_life"]) 
+
+model_6 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life * neurological_life + sex + rcs(age_at_entry, 4) + factor(deprivation) + sud_life + child_maltreatment_flag, data = data_survival)
+
+lincom(model_6, c("tbi_life"),eform = TRUE)
+
+lincom(model_6, c("tbi_life + tbi_life:neurological_life"),eform = TRUE)
+
+```
+
+### Sensitivity Analysis
+
+```{r}
+# model 7: re-specified by severity (probable mild versus probable moderate-severe) on fully-adjusted model
+model_7 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_severity + sex + rcs(age_at_entry, 5) + factor(deprivation) + sud_life + child_maltreatment_flag, data = tbi)
+summary(model_7)
+
+print(paste0("HR = ", format(exp(summary(model_7)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_7)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_7)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+
+# model 8: re-specified by recurrent vs single episode
+tbi_tdc <- data_tdc %>%
+  filter(tbi_life == 1)
+
+model_8 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_injuries + sex + rcs(age_at_entry, 5) + factor(deprivation) + sud_life + child_maltreatment_flag, data = tbi_tdc)
+summary(model_8)
+
+print(paste0("HR = ", format(exp(summary(model_8)$coefficients[1, 1]), digits = 1, nsmall = 1),
+             " [95% CI: ", format(summary(model_8)$conf.int[1, 3], digits = 1, nsmall = 1), "-",
+             format(summary(model_8)$conf.int[1, 4], digits = 1, nsmall = 1), "]"))
+# [1] "HR = 1.6 [95% CI: 1.3-2.0]"
+
+## model 9: (nested) interaction effect of age at injury
+
+data_survival$agetbi <- cut(data_survival$age_at_tbi,
+                            breaks = c(-Inf, 4, 9, 14, 19, 25),
+                            labels = c("0-4", "5-9", "10-14", "15-19", "20-24"),
+                            right = FALSE)
+
+model_9 <- coxph(Surv(tstart,tstop, endpoint) ~ tbi_life + sex + rcs(age_at_entry, 4) + factor(deprivation) + sud_life + child_maltreatment_flag + # main effects 
+                   tbi_life:agetbi, # interaction
+                 data = data_survival)
+summary(model_9)
+exp(coef(model_9))
+
+model9_summary <- summary(model_9)
+output_table <- model9_summary$coefficients %>%
+  as.data.frame() %>%
+  rownames_to_column("Term") %>%
+  mutate(
+    HR = exp(coef),
+    `Lower CI` = exp(coef - 1.96 * `se(coef)`),
+    `Upper CI` = exp(coef + 1.96 * `se(coef)`)
+  ) %>%
+  select(Term, coef, HR, `Lower CI`, `Upper CI`, `Pr(>|z|)`)
+print(output_table, digits = 3)
+# when e+00 , the exponent is zero and the number is actually as presented
+# increased risk of violent victimisation as the age at which the injury is sustained increases
+
+plot_scatter <- ggplot(data_survival, aes(x = age_at_tbi, y = age_at_victim)) +
+  geom_point(color = "indianred4", size = 3) + 
+  geom_smooth(method = "lm", color = 'lightpink3', se = FALSE) + 
+  labs(title = "Age at TBI vs. Age at Victimisation",
+       x = "Age at TBI", 
+       y = "Age at Victimisation") +
+  theme_minimal()
+
+plot_scatter
+
+
+summary_data <- tbi %>%
+  group_by(agetbi) %>%
+  summarise(victimisation_count = sum(endpoint == 1))
+
+plot_count <- ggplot(summary_data, aes(x = agetbi, y = victimisation_count, fill = agetbi)) + 
+  geom_bar(stat = "identity") + 
+  labs(
+    title = "Number of Victimisation Events by Age at TBI",
+    x = "Age at TBI",
+    y = "Count of Victimisation Events", 
+    fill = "Age at TBI"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = met.brewer("Cassatt1"))
+
+plot_count  
+```
+
+# Clean Up R Workspace
+
+```{r}
+# free unused R memory
+gc()
+
+# clear environment ###
+rm(list = ls())
+
+# clear console ###
+cat("\014")
+```

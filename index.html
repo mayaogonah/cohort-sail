@@ -2437,7 +2437,6 @@ function hexToRgb(e){var a=/^#?([a-f\d])([a-f\d])([a-f\d])$/i;e=e.replace(a,func
    
   <ul>
   <li><a href="#load-packages" id="toc-load-packages" class="nav-link active" data-scroll-target="#load-packages">Load Packages</a></li>
-  <li><a href="#sail-databank-geographical-coverage" id="toc-sail-databank-geographical-coverage" class="nav-link" data-scroll-target="#sail-databank-geographical-coverage">SAIL Databank Geographical Coverage</a></li>
   <li><a href="#data-wrangling" id="toc-data-wrangling" class="nav-link" data-scroll-target="#data-wrangling">Data Wrangling</a>
   <ul class="collapse">
   <li><a href="#specifying-follow-up" id="toc-specifying-follow-up" class="nav-link" data-scroll-target="#specifying-follow-up">Specifying Follow-up</a>
@@ -2449,6 +2448,7 @@ function hexToRgb(e){var a=/^#?([a-f\d])([a-f\d])([a-f\d])$/i;e=e.replace(a,func
   <li><a href="#eliminate-those-with-negative-follow-up" id="toc-eliminate-those-with-negative-follow-up" class="nav-link" data-scroll-target="#eliminate-those-with-negative-follow-up">Eliminate those with “Negative” Follow-Up</a></li>
   </ul></li>
   </ul></li>
+  <li><a href="#sail-databank-geographical-coverage" id="toc-sail-databank-geographical-coverage" class="nav-link" data-scroll-target="#sail-databank-geographical-coverage">SAIL Databank Geographical Coverage</a></li>
   <li><a href="#set-the-outcome-self-harm" id="toc-set-the-outcome-self-harm" class="nav-link" data-scroll-target="#set-the-outcome-self-harm">Set the Outcome: Self-Harm</a>
   <ul class="collapse">
   <li><a href="#complete-data-wrangling" id="toc-complete-data-wrangling" class="nav-link" data-scroll-target="#complete-data-wrangling">Complete Data Wrangling</a>
@@ -2669,181 +2669,108 @@ animation: octocat-wave 560ms ease-in-out;
 </details>
 </div>
 </section>
-<section id="sail-databank-geographical-coverage" class="level1">
-<h1>SAIL Databank Geographical Coverage</h1>
-<div class="cell">
-<details open class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load data</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>gp.data <span class="ot">&lt;-</span> <span class="fu">read.xlsx</span>(<span class="st">&quot;geo-data/gp_coverage.xlsx&quot;</span>)</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>my_geojson <span class="ot">&lt;-</span> <span class="fu">read_sf</span>(<span class="st">&quot;geo-data/features.json&quot;</span>)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"># plot basic geospatial object</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(my_geojson) <span class="sc">+</span> </span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">fill =</span> <span class="st">&quot;white&quot;</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_void</span>()</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># merge geospatial and numeric data</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>gp.map <span class="ot">&lt;-</span> my_geojson <span class="sc">%&gt;%</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(gp.data, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;name_en&quot;</span> <span class="ot">=</span> <span class="st">&quot;name_en&quot;</span>))</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co"># create the basic choropleth map </span><span class="al">###</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(gp.map) <span class="sc">+</span> </span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="fu">aes</span>(<span class="at">fill =</span> sail_percent)) <span class="sc">+</span></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_void</span>()</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co"># customise the plot</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(gp.map) <span class="sc">+</span> </span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="fu">aes</span>(<span class="at">fill =</span> sail_percent), <span class="at">linewidth =</span> <span class="fl">0.5</span>, <span class="at">alpha =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_void</span>()<span class="sc">+</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_viridis_c</span>(<span class="at">option =</span> <span class="st">&quot;mako&quot;</span>,</span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">trans =</span> <span class="st">&quot;log&quot;</span>, <span class="at">breaks =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">30</span>, <span class="dv">40</span>, <span class="dv">50</span>, <span class="dv">60</span>, <span class="dv">70</span>, <span class="dv">80</span>, <span class="dv">100</span>),</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">&quot;SAIL GP (% by No. of Practices)&quot;</span>,</span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">guide =</span> <span class="fu">guide_legend</span>(</span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>      <span class="at">keyheight =</span> <span class="fu">unit</span>(<span class="dv">3</span>, <span class="at">units =</span> <span class="st">&quot;mm&quot;</span>),</span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>      <span class="at">keywidth =</span> <span class="fu">unit</span>(<span class="dv">10</span>, <span class="at">units =</span> <span class="st">&quot;mm&quot;</span>),</span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>      <span class="at">label.position =</span> <span class="st">&quot;bottom&quot;</span>,</span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>      <span class="at">title.position =</span> <span class="st">&quot;top&quot;</span>,</span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>      <span class="at">nrow =</span> <span class="dv">1</span></span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">&quot;Coverage of General Practices </span><span class="sc">\n</span><span class="st">in SAIL Databank&quot;</span>,</span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Map contains public secotr information lcensed unde the Open Government License v3.0.&quot;</span></span>
-<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
-<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">text =</span> <span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">&quot;#22211d&quot;</span>),</span>
-<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">&quot;#f5f5f2&quot;</span>, <span class="at">color =</span> <span class="cn">NA</span>),</span>
-<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">&quot;#f5f5f2&quot;</span>, <span class="at">color =</span> <span class="cn">NA</span>),</span>
-<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">&quot;#f5f5f2&quot;</span>, <span class="at">color =</span> <span class="cn">NA</span>),</span>
-<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.title =</span> <span class="fu">element_text</span>(</span>
-<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>      <span class="at">size =</span> <span class="dv">40</span>, <span class="at">hjust =</span> <span class="fl">0.01</span>, <span class="at">color =</span> <span class="st">&quot;#4e4d47&quot;</span>,</span>
-<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>      <span class="at">margin =</span> <span class="fu">margin</span>(</span>
-<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>        <span class="at">b =</span> <span class="sc">-</span><span class="fl">0.1</span>, <span class="at">t =</span> <span class="fl">0.4</span>, <span class="at">l =</span> <span class="dv">2</span>,</span>
-<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>        <span class="at">unit =</span> <span class="st">&quot;cm&quot;</span></span>
-<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.caption =</span> <span class="fu">element_text</span>(</span>
-<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>      <span class="at">size =</span> <span class="dv">6</span>,</span>
-<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>      <span class="at">color =</span> <span class="st">&quot;#4e4d47&quot;</span>,</span>
-<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>      <span class="at">margin =</span> <span class="fu">margin</span>(</span>
-<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>        <span class="at">b =</span> <span class="fl">0.3</span>, <span class="at">r =</span> <span class="sc">-</span><span class="dv">99</span>, <span class="at">t =</span> <span class="fl">0.3</span>,</span>
-<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">unit =</span> <span class="st">&quot;cm&quot;</span></span>
-<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="fu">c</span>(<span class="fl">0.32</span>, <span class="fl">0.01</span>)</span>
-<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>plot</span>
-<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a><span class="fu">pdf</span>(<span class="st">&quot;geo-data/gp_coverage_plot.pdf&quot;</span>, <span class="at">width =</span> <span class="dv">18</span>, <span class="at">height =</span> <span class="dv">13</span>, <span class="at">pointsize =</span> <span class="dv">20</span>)</span>
-<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>  plot</span>
-<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a><span class="fu">dev.off</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-</div>
-</section>
 <section id="data-wrangling" class="level1">
 <h1>Data Wrangling</h1>
 <p>Load the linked file created using SQL</p>
 <div class="cell">
 <details open class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load the linked file ...</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># convert characters to dates</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(cohort)</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>cohort<span class="sc">$</span>FIRST_START_DATE <span class="ot">&lt;-</span> <span class="fu">ymd</span>(cohort<span class="sc">$</span>FIRST_START_DATE)</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>cohort<span class="sc">$</span>LAST_END_DATE <span class="ot">&lt;-</span> <span class="fu">ymd</span>(cohort<span class="sc">$</span>LAST_END_DATE)</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> cohort <span class="sc">%&gt;%</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span><span class="fu">starts_with</span>(<span class="st">&quot;PEDW&quot;</span>), <span class="sc">-</span><span class="fu">contains</span>(<span class="st">&quot;EDDS&quot;</span>), <span class="sc">-</span><span class="fu">starts_with</span>(<span class="st">&quot;WLGP&quot;</span>), <span class="sc">-</span><span class="fu">starts_with</span>(<span class="st">&quot;ADDE&quot;</span>), <span class="sc">-</span><span class="fu">contains</span>(<span class="st">&quot;GP&quot;</span>), <span class="sc">-</span><span class="fu">contains</span>(<span class="st">&quot;IP&quot;</span>), <span class="sc">-</span>CINW_CPR, <span class="sc">-</span>CRCS_CPR, PSYCH_EDDS_DT, PSYCH_EDDS_FLAG, NEURO_EDDS_FLAG, NEURO_EDDS_DT)</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(data)</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(data) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;person_time_days&quot;</span>, <span class="st">&quot;wob&quot;</span>, <span class="st">&quot;dod&quot;</span>, <span class="st">&quot;sex&quot;</span>, <span class="st">&quot;mtbi_flag&quot;</span>, <span class="st">&quot;mtbi_date&quot;</span>, <span class="st">&quot;modsevtbi_flag&quot;</span>, <span class="st">&quot;modsevtbi_date&quot;</span>, <span class="st">&quot;tbi_unspecified_flag&quot;</span>, <span class="st">&quot;tbi_unspecified_date&quot;</span>, <span class="st">&quot;tbi_life&quot;</span>, <span class="st">&quot;tbi_date&quot;</span>, <span class="st">&quot;age_at_tbi&quot;</span>, <span class="st">&quot;suicidality_life&quot;</span>, <span class="st">&quot;suicidality_date&quot;</span>, <span class="st">&quot;pretbi_suicidality&quot;</span>, <span class="st">&quot;victimisation_life&quot;</span>, <span class="st">&quot;victimisation_date&quot;</span>, <span class="st">&quot;pretbi_victimisation&quot;</span>, <span class="st">&quot;sud_life&quot;</span>, <span class="st">&quot;sud_date&quot;</span>, <span class="st">&quot;pretbi_sud&quot;</span>, <span class="st">&quot;smi_life&quot;</span>, <span class="st">&quot;smi_date&quot;</span>, <span class="st">&quot;depression_life&quot;</span>, <span class="st">&quot;depression_date&quot;</span>, <span class="st">&quot;anxiety_life&quot;</span>, <span class="st">&quot;anxiety_date&quot;</span>, <span class="st">&quot;psychiatric_life&quot;</span>, <span class="st">&quot;psychiatric_date&quot;</span>, <span class="st">&quot;pretbi_psychiatric&quot;</span>, <span class="st">&quot;adhd_life&quot;</span>, <span class="st">&quot;adhd_date&quot;</span>, <span class="st">&quot;pretbi_adhd&quot;</span>, <span class="st">&quot;autism_life&quot;</span>, <span class="st">&quot;autism_date&quot;</span>, <span class="st">&quot;pretbi_autism&quot;</span>, <span class="st">&quot;conduct_disorder_life&quot;</span>, <span class="st">&quot;conduct_disorder_date&quot;</span>, <span class="st">&quot;pretbi_conduct_disorder&quot;</span>, <span class="st">&quot;learning_difficulties_life&quot;</span>, <span class="st">&quot;learning_difficulties_date&quot;</span>, <span class="st">&quot;pretbi_learning_difficulties&quot;</span>, <span class="st">&quot;epilepsy_life&quot;</span>, <span class="st">&quot;epilepsy_date&quot;</span>, <span class="st">&quot;cerebral_palsy_life&quot;</span>, <span class="st">&quot;cerebral_palsy_date&quot;</span>, <span class="st">&quot;migraine_life&quot;</span>, <span class="st">&quot;migraine_date&quot;</span>, <span class="st">&quot;neurological_life&quot;</span>, <span class="st">&quot;neurological_date&quot;</span>, <span class="st">&quot;pretbi_neurological&quot;</span>, <span class="st">&quot;deprivation&quot;</span>, <span class="st">&quot;child_maltreatment_flag&quot;</span>, <span class="st">&quot;looked_after_life&quot;</span>, <span class="st">&quot;looked_after_date&quot;</span>, <span class="st">&quot;pretbi_looked_after&quot;</span>, <span class="st">&quot;ed_psych_date&quot;</span>, <span class="st">&quot;ed_psych_life&quot;</span>, <span class="st">&quot;ed_neuro_life&quot;</span>, <span class="st">&quot;ed_neuro_date&quot;</span>)</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">pretbi_neurodevelopmental =</span> <span class="fu">ifelse</span>(pretbi_autism <span class="sc">==</span> <span class="dv">1</span> <span class="sc">|</span> pretbi_adhd <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span> )) <span class="sc">%&gt;%</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">neurodevelopmental_life =</span> <span class="fu">ifelse</span>(autism_life <span class="sc">==</span> <span class="dv">1</span> <span class="sc">|</span> adhd_life <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span> ))</span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co"># individuals with TBI (all mod-sev) after the end of study </span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>right_cens <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(tbi_date <span class="sc">&gt;</span> end_date)</span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">modsevtbi_date =</span> <span class="fu">replace</span>(modsevtbi_date, modsevtbi_date <span class="sc">&gt;</span> end_date, <span class="fu">as.Date</span>(<span class="cn">NA</span>)))</span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">modsevtbi_flag =</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(modsevtbi_date), <span class="dv">0</span>, <span class="dv">1</span>))</span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_life =</span> <span class="fu">ifelse</span>(mtbi_flag <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> modsevtbi_flag <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> tbi_unspecified_flag <span class="sc">==</span> <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>))</span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_date =</span> <span class="fu">replace</span>(tbi_date, tbi_life <span class="sc">==</span> <span class="dv">0</span>, <span class="fu">as.Date</span>(<span class="cn">NA</span>)))</span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a><span class="co"># some individuals have a mild/moderate-severe/unspecified TBI date however have been missed from the flag </span></span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_date =</span> <span class="fu">case_when</span>(</span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(mtbi_date) <span class="sc">~</span> mtbi_date, </span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(modsevtbi_date) <span class="sc">~</span> modsevtbi_date,</span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(tbi_unspecified_date) <span class="sc">~</span> tbi_unspecified_date</span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>  )) <span class="sc">%&gt;%</span></span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_life =</span> <span class="fu">ifelse</span>(<span class="sc">!</span><span class="fu">is.na</span>(tbi_date), <span class="dv">1</span>, <span class="dv">0</span>))</span>
-<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a><span class="co"># a few individuals where the later tbi date was chosen as first TBI</span></span>
-<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a><span class="co"># calculate age at TBI injury (and ensure age is numeric)</span></span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>age_at_tbi <span class="ot">&lt;-</span> <span class="fu">decimal_date</span>(data<span class="sc">$</span>tbi_date) <span class="sc">-</span> <span class="fu">decimal_date</span>(data<span class="sc">$</span>wob)</span>
-<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>age_at_tbi <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(data<span class="sc">$</span>age_at_tbi)</span>
-<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a><span class="co"># some individuals marked as &quot;TBI&quot; even though the event occurred at over 25y</span></span>
-<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>over25_TBI <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age_at_tbi <span class="sc">&gt;=</span> <span class="dv">25</span> <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(tbi_date)) <span class="sc">%&gt;%</span></span>
-<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;wob&quot;</span>, <span class="st">&quot;age_at_tbi&quot;</span>, <span class="st">&quot;tbi_life&quot;</span>, <span class="st">&quot;tbi_date&quot;</span>, <span class="st">&quot;mtbi_flag&quot;</span>, <span class="st">&quot;mtbi_date&quot;</span>, <span class="st">&quot;modsevtbi_flag&quot;</span>, <span class="st">&quot;modsevtbi_date&quot;</span>, <span class="st">&quot;tbi_unspecified_flag&quot;</span>, <span class="st">&quot;tbi_unspecified_date&quot;</span>)</span>
-<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a><span class="co"># individuals with a TBI at over 25 labelled as &#39;TBI&#39;, recode as &#39;No TBI</span></span>
-<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a><span class="co"># recode TBI_life to 0</span></span>
-<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_life =</span> <span class="fu">ifelse</span>(tbi_life <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> age_at_tbi <span class="sc">&gt;</span> <span class="dv">25</span>, <span class="dv">0</span>, tbi_life))</span>
-<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a><span class="co"># recode TBI date to NA</span></span>
-<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_date =</span> <span class="fu">case_when</span>(</span>
-<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>    tbi_life <span class="sc">==</span> <span class="dv">0</span> <span class="sc">~</span> <span class="fu">as.Date</span>(<span class="cn">NA</span>),</span>
-<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a>    tbi_life <span class="sc">==</span> <span class="dv">1</span> <span class="sc">~</span> tbi_date</span>
-<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a>  ))</span>
-<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a><span class="co"># recode age at TBI to NA</span></span>
-<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">age_at_tbi =</span> <span class="fu">ifelse</span>(tbi_life <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(age_at_tbi), <span class="cn">NA_real_</span>, age_at_tbi))</span>
-<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a><span class="co"># create a column for diagnosis (TBI / No TBI) and TBI severity</span></span>
-<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">diagnosis =</span> <span class="fu">ifelse</span>(tbi_life <span class="sc">==</span> <span class="dv">1</span>, <span class="st">&#39;tbi&#39;</span>, <span class="st">&#39;no tbi&#39;</span>),</span>
-<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>                <span class="at">tbi_severity =</span> <span class="fu">case_when</span>(</span>
-<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>                  (tbi_date <span class="sc">==</span> mtbi_date) <span class="sc">~</span> <span class="st">&quot;probable mild&quot;</span>, </span>
-<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a>                  (tbi_date <span class="sc">==</span> modsevtbi_date) <span class="sc">~</span> <span class="st">&quot;probable moderate-severe&quot;</span>,</span>
-<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a>                  (tbi_date <span class="sc">==</span> tbi_unspecified_date) <span class="sc">~</span> <span class="st">&quot;probable mild&quot;</span> )</span>
-<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a><span class="co"># recoding severity to compare only those with mild to moderate (excluding unspecified)</span></span>
-<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_severity_binary =</span> <span class="fu">case_when</span>(</span>
-<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a>    tbi_severity <span class="sc">==</span> <span class="st">&quot;probable mild&quot;</span> <span class="sc">~</span> <span class="dv">0</span>,</span>
-<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a>    tbi_severity <span class="sc">==</span> <span class="st">&quot;probable moderate-severe&quot;</span> <span class="sc">~</span> <span class="dv">1</span></span>
-<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a>  ))</span>
-<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a><span class="co"># recode sex, and create variables for variables used for analysis</span></span>
-<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(sex, as.numeric)) <span class="sc">%&gt;%</span></span>
-<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sex =</span> <span class="fu">replace</span>(sex, sex <span class="sc">==</span><span class="dv">1</span>, <span class="dv">0</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sex =</span> <span class="fu">replace</span>(sex, sex <span class="sc">==</span><span class="dv">2</span>, <span class="dv">1</span>))</span>
-<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a><span class="co"># flip the coding of deprivation so high deprivation is &#39;baseline&#39;. A high HR would indicate that high deprivation increases the risk</span></span>
-<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>deprivation <span class="ot">&lt;-</span>  car<span class="sc">::</span><span class="fu">recode</span>(data<span class="sc">$</span>deprivation, <span class="st">&quot;5=1; 4=2; 3=3; 2=4; 1=5&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load the linked file ...</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># convert characters to dates</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(cohort)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>cohort<span class="sc">$</span>FIRST_START_DATE <span class="ot">&lt;-</span> <span class="fu">ymd</span>(cohort<span class="sc">$</span>FIRST_START_DATE)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>cohort<span class="sc">$</span>LAST_END_DATE <span class="ot">&lt;-</span> <span class="fu">ymd</span>(cohort<span class="sc">$</span>LAST_END_DATE)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> cohort <span class="sc">%&gt;%</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span><span class="fu">starts_with</span>(<span class="st">&quot;PEDW&quot;</span>), <span class="sc">-</span><span class="fu">contains</span>(<span class="st">&quot;EDDS&quot;</span>), <span class="sc">-</span><span class="fu">starts_with</span>(<span class="st">&quot;WLGP&quot;</span>), <span class="sc">-</span><span class="fu">starts_with</span>(<span class="st">&quot;ADDE&quot;</span>), <span class="sc">-</span><span class="fu">contains</span>(<span class="st">&quot;GP&quot;</span>), <span class="sc">-</span><span class="fu">contains</span>(<span class="st">&quot;IP&quot;</span>), <span class="sc">-</span>CINW_CPR, <span class="sc">-</span>CRCS_CPR, PSYCH_EDDS_DT, PSYCH_EDDS_FLAG, NEURO_EDDS_FLAG, NEURO_EDDS_DT)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(data)</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(data) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;person_time_days&quot;</span>, <span class="st">&quot;wob&quot;</span>, <span class="st">&quot;dod&quot;</span>, <span class="st">&quot;sex&quot;</span>, <span class="st">&quot;mtbi_flag&quot;</span>, <span class="st">&quot;mtbi_date&quot;</span>, <span class="st">&quot;modsevtbi_flag&quot;</span>, <span class="st">&quot;modsevtbi_date&quot;</span>, <span class="st">&quot;tbi_unspecified_flag&quot;</span>, <span class="st">&quot;tbi_unspecified_date&quot;</span>, <span class="st">&quot;tbi_life&quot;</span>, <span class="st">&quot;tbi_date&quot;</span>, <span class="st">&quot;age_at_tbi&quot;</span>, <span class="st">&quot;suicidality_life&quot;</span>, <span class="st">&quot;suicidality_date&quot;</span>, <span class="st">&quot;pretbi_suicidality&quot;</span>, <span class="st">&quot;victimisation_life&quot;</span>, <span class="st">&quot;victimisation_date&quot;</span>, <span class="st">&quot;pretbi_victimisation&quot;</span>, <span class="st">&quot;sud_life&quot;</span>, <span class="st">&quot;sud_date&quot;</span>, <span class="st">&quot;pretbi_sud&quot;</span>, <span class="st">&quot;smi_life&quot;</span>, <span class="st">&quot;smi_date&quot;</span>, <span class="st">&quot;depression_life&quot;</span>, <span class="st">&quot;depression_date&quot;</span>, <span class="st">&quot;anxiety_life&quot;</span>, <span class="st">&quot;anxiety_date&quot;</span>, <span class="st">&quot;psychiatric_life&quot;</span>, <span class="st">&quot;psychiatric_date&quot;</span>, <span class="st">&quot;pretbi_psychiatric&quot;</span>, <span class="st">&quot;adhd_life&quot;</span>, <span class="st">&quot;adhd_date&quot;</span>, <span class="st">&quot;pretbi_adhd&quot;</span>, <span class="st">&quot;autism_life&quot;</span>, <span class="st">&quot;autism_date&quot;</span>, <span class="st">&quot;pretbi_autism&quot;</span>, <span class="st">&quot;conduct_disorder_life&quot;</span>, <span class="st">&quot;conduct_disorder_date&quot;</span>, <span class="st">&quot;pretbi_conduct_disorder&quot;</span>, <span class="st">&quot;learning_difficulties_life&quot;</span>, <span class="st">&quot;learning_difficulties_date&quot;</span>, <span class="st">&quot;pretbi_learning_difficulties&quot;</span>, <span class="st">&quot;epilepsy_life&quot;</span>, <span class="st">&quot;epilepsy_date&quot;</span>, <span class="st">&quot;cerebral_palsy_life&quot;</span>, <span class="st">&quot;cerebral_palsy_date&quot;</span>, <span class="st">&quot;migraine_life&quot;</span>, <span class="st">&quot;migraine_date&quot;</span>, <span class="st">&quot;neurological_life&quot;</span>, <span class="st">&quot;neurological_date&quot;</span>, <span class="st">&quot;pretbi_neurological&quot;</span>, <span class="st">&quot;deprivation&quot;</span>, <span class="st">&quot;child_maltreatment_flag&quot;</span>, <span class="st">&quot;looked_after_life&quot;</span>, <span class="st">&quot;looked_after_date&quot;</span>, <span class="st">&quot;pretbi_looked_after&quot;</span>, <span class="st">&quot;ed_psych_date&quot;</span>, <span class="st">&quot;ed_psych_life&quot;</span>, <span class="st">&quot;ed_neuro_life&quot;</span>, <span class="st">&quot;ed_neuro_date&quot;</span>)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">pretbi_neurodevelopmental =</span> <span class="fu">ifelse</span>(pretbi_autism <span class="sc">==</span> <span class="dv">1</span> <span class="sc">|</span> pretbi_adhd <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span> )) <span class="sc">%&gt;%</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">neurodevelopmental_life =</span> <span class="fu">ifelse</span>(autism_life <span class="sc">==</span> <span class="dv">1</span> <span class="sc">|</span> adhd_life <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span> ))</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co"># individuals with TBI (all mod-sev) after the end of study </span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>right_cens <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(tbi_date <span class="sc">&gt;</span> end_date)</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">modsevtbi_date =</span> <span class="fu">replace</span>(modsevtbi_date, modsevtbi_date <span class="sc">&gt;</span> end_date, <span class="fu">as.Date</span>(<span class="cn">NA</span>)))</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">modsevtbi_flag =</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(modsevtbi_date), <span class="dv">0</span>, <span class="dv">1</span>))</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_life =</span> <span class="fu">ifelse</span>(mtbi_flag <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> modsevtbi_flag <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> tbi_unspecified_flag <span class="sc">==</span> <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>))</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_date =</span> <span class="fu">replace</span>(tbi_date, tbi_life <span class="sc">==</span> <span class="dv">0</span>, <span class="fu">as.Date</span>(<span class="cn">NA</span>)))</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="co"># some individuals have a mild/moderate-severe/unspecified TBI date however have been missed from the flag </span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_date =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(mtbi_date) <span class="sc">~</span> mtbi_date, </span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(modsevtbi_date) <span class="sc">~</span> modsevtbi_date,</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(tbi_unspecified_date) <span class="sc">~</span> tbi_unspecified_date</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>  )) <span class="sc">%&gt;%</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_life =</span> <span class="fu">ifelse</span>(<span class="sc">!</span><span class="fu">is.na</span>(tbi_date), <span class="dv">1</span>, <span class="dv">0</span>))</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a><span class="co"># a few individuals where the later tbi date was chosen as first TBI</span></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a><span class="co"># calculate age at TBI injury (and ensure age is numeric)</span></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>age_at_tbi <span class="ot">&lt;-</span> <span class="fu">decimal_date</span>(data<span class="sc">$</span>tbi_date) <span class="sc">-</span> <span class="fu">decimal_date</span>(data<span class="sc">$</span>wob)</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>age_at_tbi <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(data<span class="sc">$</span>age_at_tbi)</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a><span class="co"># some individuals marked as &quot;TBI&quot; even though the event occurred at over 25y</span></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>over25_TBI <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age_at_tbi <span class="sc">&gt;=</span> <span class="dv">25</span> <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(tbi_date)) <span class="sc">%&gt;%</span></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;wob&quot;</span>, <span class="st">&quot;age_at_tbi&quot;</span>, <span class="st">&quot;tbi_life&quot;</span>, <span class="st">&quot;tbi_date&quot;</span>, <span class="st">&quot;mtbi_flag&quot;</span>, <span class="st">&quot;mtbi_date&quot;</span>, <span class="st">&quot;modsevtbi_flag&quot;</span>, <span class="st">&quot;modsevtbi_date&quot;</span>, <span class="st">&quot;tbi_unspecified_flag&quot;</span>, <span class="st">&quot;tbi_unspecified_date&quot;</span>)</span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a><span class="co"># individuals with a TBI at over 25 labelled as &#39;TBI&#39;, recode as &#39;No TBI</span></span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a><span class="co"># recode TBI_life to 0</span></span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_life =</span> <span class="fu">ifelse</span>(tbi_life <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> age_at_tbi <span class="sc">&gt;</span> <span class="dv">25</span>, <span class="dv">0</span>, tbi_life))</span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a><span class="co"># recode TBI date to NA</span></span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_date =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>    tbi_life <span class="sc">==</span> <span class="dv">0</span> <span class="sc">~</span> <span class="fu">as.Date</span>(<span class="cn">NA</span>),</span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>    tbi_life <span class="sc">==</span> <span class="dv">1</span> <span class="sc">~</span> tbi_date</span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a><span class="co"># recode age at TBI to NA</span></span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">age_at_tbi =</span> <span class="fu">ifelse</span>(tbi_life <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(age_at_tbi), <span class="cn">NA_real_</span>, age_at_tbi))</span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a><span class="co"># create a column for diagnosis (TBI / No TBI) and TBI severity</span></span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">diagnosis =</span> <span class="fu">ifelse</span>(tbi_life <span class="sc">==</span> <span class="dv">1</span>, <span class="st">&#39;tbi&#39;</span>, <span class="st">&#39;no tbi&#39;</span>),</span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>                <span class="at">tbi_severity =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a>                  (tbi_date <span class="sc">==</span> mtbi_date) <span class="sc">~</span> <span class="st">&quot;probable mild&quot;</span>, </span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a>                  (tbi_date <span class="sc">==</span> modsevtbi_date) <span class="sc">~</span> <span class="st">&quot;probable moderate-severe&quot;</span>,</span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a>                  (tbi_date <span class="sc">==</span> tbi_unspecified_date) <span class="sc">~</span> <span class="st">&quot;probable mild&quot;</span> )</span>
+<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a><span class="co"># recoding severity to compare only those with mild to moderate (excluding unspecified)</span></span>
+<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tbi_severity_binary =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-85"><a href="#cb2-85" aria-hidden="true" tabindex="-1"></a>    tbi_severity <span class="sc">==</span> <span class="st">&quot;probable mild&quot;</span> <span class="sc">~</span> <span class="dv">0</span>,</span>
+<span id="cb2-86"><a href="#cb2-86" aria-hidden="true" tabindex="-1"></a>    tbi_severity <span class="sc">==</span> <span class="st">&quot;probable moderate-severe&quot;</span> <span class="sc">~</span> <span class="dv">1</span></span>
+<span id="cb2-87"><a href="#cb2-87" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb2-88"><a href="#cb2-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-89"><a href="#cb2-89" aria-hidden="true" tabindex="-1"></a><span class="co"># recode sex, and create variables for variables used for analysis</span></span>
+<span id="cb2-90"><a href="#cb2-90" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-91"><a href="#cb2-91" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(sex, as.numeric)) <span class="sc">%&gt;%</span></span>
+<span id="cb2-92"><a href="#cb2-92" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sex =</span> <span class="fu">replace</span>(sex, sex <span class="sc">==</span><span class="dv">1</span>, <span class="dv">0</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb2-93"><a href="#cb2-93" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sex =</span> <span class="fu">replace</span>(sex, sex <span class="sc">==</span><span class="dv">2</span>, <span class="dv">1</span>))</span>
+<span id="cb2-94"><a href="#cb2-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-95"><a href="#cb2-95" aria-hidden="true" tabindex="-1"></a><span class="co"># flip the coding of deprivation so high deprivation is &#39;baseline&#39;. A high HR would indicate that high deprivation increases the risk</span></span>
+<span id="cb2-96"><a href="#cb2-96" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>deprivation <span class="ot">&lt;-</span>  car<span class="sc">::</span><span class="fu">recode</span>(data<span class="sc">$</span>deprivation, <span class="st">&quot;5=1; 4=2; 3=3; 2=4; 1=5&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <section id="specifying-follow-up" class="level2">
@@ -2853,19 +2780,19 @@ animation: octocat-wave 560ms ease-in-out;
 <div class="cell">
 <details open class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># follow-up starts on date of first TBI + 1 (first_tbi_date) </span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># for controls follow up starts on entry into the study + 1 (start_date) </span><span class="al">###</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">entry_date =</span> <span class="fu">case_when</span>(</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    (tbi_life <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">~</span> start_date <span class="sc">+</span> <span class="fu">days</span>(<span class="dv">1</span>),</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    (tbi_life <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">~</span> tbi_date <span class="sc">+</span> <span class="fu">days</span>(<span class="dv">1</span>)</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  ))</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>entry_dd <span class="ot">&lt;-</span> <span class="fu">decimal_date</span>(data<span class="sc">$</span>entry_date) <span class="co"># create decimal date for day of entry</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>wob_dd <span class="ot">&lt;-</span> <span class="fu">decimal_date</span>(data<span class="sc">$</span>wob) <span class="co"># create decimal date for week of birth</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>age_at_entry <span class="ot">&lt;-</span> data<span class="sc">$</span>entry_dd <span class="sc">-</span> data<span class="sc">$</span>wob_dd <span class="co"># create age at entry (decimal date)</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data<span class="sc">$</span>entry_date)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># follow-up starts on date of first TBI + 1 (first_tbi_date) </span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># for controls follow up starts on entry into the study + 1 (start_date) </span><span class="al">###</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">entry_date =</span> <span class="fu">case_when</span>(</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    (tbi_life <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">~</span> start_date <span class="sc">+</span> <span class="fu">days</span>(<span class="dv">1</span>),</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    (tbi_life <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">~</span> tbi_date <span class="sc">+</span> <span class="fu">days</span>(<span class="dv">1</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>entry_dd <span class="ot">&lt;-</span> <span class="fu">decimal_date</span>(data<span class="sc">$</span>entry_date) <span class="co"># create decimal date for day of entry</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>wob_dd <span class="ot">&lt;-</span> <span class="fu">decimal_date</span>(data<span class="sc">$</span>wob) <span class="co"># create decimal date for week of birth</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>age_at_entry <span class="ot">&lt;-</span> data<span class="sc">$</span>entry_dd <span class="sc">-</span> data<span class="sc">$</span>wob_dd <span class="co"># create age at entry (decimal date)</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data<span class="sc">$</span>entry_date)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -2874,12 +2801,12 @@ animation: octocat-wave 560ms ease-in-out;
 <div class="cell">
 <details open class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>data_25y <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age_at_entry <span class="sc">&lt;</span> <span class="dv">25</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(data_25y)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>tbi25y <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age_at_entry <span class="sc">&gt;=</span> <span class="dv">25</span> <span class="sc">&amp;</span> tbi_life <span class="sc">==</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>data_25y <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age_at_entry <span class="sc">&lt;</span> <span class="dv">25</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(data_25y)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>tbi25y <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age_at_entry <span class="sc">&gt;=</span> <span class="dv">25</span> <span class="sc">&amp;</span> tbi_life <span class="sc">==</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -2888,19 +2815,19 @@ animation: octocat-wave 560ms ease-in-out;
 <div class="cell">
 <details open class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># check missing and incorrectly coded data</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>columns_to_check <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;wob&quot;</span>, <span class="st">&quot;sex&quot;</span>, <span class="st">&quot;deprivation&quot;</span>)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>rows_with_missing_data <span class="ot">&lt;-</span> data_25y[<span class="fu">apply</span>(<span class="fu">is.na</span>(data_25y[, columns_to_check]), <span class="dv">1</span>, any), ]</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>rows_with_missing_data <span class="ot">&lt;-</span> rows_with_missing_data <span class="sc">%&gt;%</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;wob&quot;</span>, <span class="st">&quot;sex&quot;</span>, <span class="st">&quot;deprivation&quot;</span>, <span class="st">&quot;person_time_days&quot;</span>)</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="do">## individuals with missing data for ALF_PE, start and end dates (for study period), time-person-days, WOB, and deprivation(WIMD)</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>data_25y <span class="ot">&lt;-</span> <span class="fu">anti_join</span>(data_25y, rows_with_missing_data, <span class="at">by =</span> <span class="st">&quot;alf&quot;</span>)</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co"># created a cohort with no missing data or miscoded dates </span></span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co"># for ease of using original code </span></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data_25y</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># check missing and incorrectly coded data</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>columns_to_check <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;wob&quot;</span>, <span class="st">&quot;sex&quot;</span>, <span class="st">&quot;deprivation&quot;</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>rows_with_missing_data <span class="ot">&lt;-</span> data_25y[<span class="fu">apply</span>(<span class="fu">is.na</span>(data_25y[, columns_to_check]), <span class="dv">1</span>, any), ]</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>rows_with_missing_data <span class="ot">&lt;-</span> rows_with_missing_data <span class="sc">%&gt;%</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;wob&quot;</span>, <span class="st">&quot;sex&quot;</span>, <span class="st">&quot;deprivation&quot;</span>, <span class="st">&quot;person_time_days&quot;</span>)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="do">## individuals with missing data for ALF_PE, start and end dates (for study period), time-person-days, WOB, and deprivation(WIMD)</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>data_25y <span class="ot">&lt;-</span> <span class="fu">anti_join</span>(data_25y, rows_with_missing_data, <span class="at">by =</span> <span class="st">&quot;alf&quot;</span>)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co"># created a cohort with no missing data or miscoded dates </span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co"># for ease of using original code </span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data_25y</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -2909,16 +2836,16 @@ animation: octocat-wave 560ms ease-in-out;
 <div class="cell">
 <details open class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># follow-up ends on October 16 2023, end of GP registration, or death, whichever occurs first</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>last_date <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="st">&quot;2023-10-16&quot;</span>)</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>exit_date <span class="ot">&lt;-</span> <span class="fu">pmin</span>(data[, <span class="st">&quot;end_date&quot;</span>], data[, <span class="st">&quot;dod&quot;</span>], data[, <span class="st">&quot;last_date&quot;</span>], <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>exit_dd <span class="ot">&lt;-</span> <span class="fu">decimal_date</span>(data<span class="sc">$</span>exit) <span class="co"># create decimal date for date of exit</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>age_at_exit <span class="ot">&lt;-</span> data<span class="sc">$</span>exit_dd <span class="sc">-</span> data<span class="sc">$</span>wob_dd <span class="co"># create age of exit (decimal date)</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co">#summary(data$exit_date)</span></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co">#table(data$exit_date)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># follow-up ends on October 16 2023, end of GP registration, or death, whichever occurs first</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>last_date <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="st">&quot;2023-10-16&quot;</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>exit_date <span class="ot">&lt;-</span> <span class="fu">pmin</span>(data[, <span class="st">&quot;end_date&quot;</span>], data[, <span class="st">&quot;dod&quot;</span>], data[, <span class="st">&quot;last_date&quot;</span>], <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>exit_dd <span class="ot">&lt;-</span> <span class="fu">decimal_date</span>(data<span class="sc">$</span>exit) <span class="co"># create decimal date for date of exit</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>age_at_exit <span class="ot">&lt;-</span> data<span class="sc">$</span>exit_dd <span class="sc">-</span> data<span class="sc">$</span>wob_dd <span class="co"># create age of exit (decimal date)</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co">#summary(data$exit_date)</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co">#table(data$exit_date)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -2927,31 +2854,104 @@ animation: octocat-wave 560ms ease-in-out;
 <div class="cell">
 <details open class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>negativefu <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(entry_dd <span class="sc">&gt;</span> exit_dd) <span class="sc">%&gt;%</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;tbi_date&quot;</span>, <span class="st">&quot;tbi_life&quot;</span>, <span class="st">&quot;victimisation_date&quot;</span>, <span class="st">&quot;entry_date&quot;</span>, <span class="st">&quot;exit_date&quot;</span>, <span class="st">&quot;entry_dd&quot;</span>, <span class="st">&quot;exit_dd&quot;</span>) </span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">prop.table</span>(<span class="fu">table</span>(negativefu<span class="sc">$</span>tbi_life))<span class="sc">*</span><span class="dv">100</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>zerofu <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(entry_dd <span class="sc">==</span> exit_dd) <span class="sc">%&gt;%</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;tbi_date&quot;</span>, <span class="st">&quot;tbi_life&quot;</span>, <span class="st">&quot;victimisation_date&quot;</span>, <span class="st">&quot;entry_date&quot;</span>, <span class="st">&quot;exit_date&quot;</span>, <span class="st">&quot;entry_dd&quot;</span>, <span class="st">&quot;exit_dd&quot;</span>)</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="fu">prop.table</span>(<span class="fu">table</span>(zerofu<span class="sc">$</span>tbi_life))<span class="sc">*</span><span class="dv">100</span></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>short_fu <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">as.numeric</span>(<span class="fu">difftime</span>(exit_date, entry_date, <span class="at">units =</span> <span class="st">&quot;days&quot;</span>)) <span class="sc">&lt;</span> <span class="dv">7</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;tbi_date&quot;</span>, <span class="st">&quot;tbi_life&quot;</span>, <span class="st">&quot;victimisation_date&quot;</span>, <span class="st">&quot;entry_date&quot;</span>, <span class="st">&quot;exit_date&quot;</span>, <span class="st">&quot;entry_dd&quot;</span>, <span class="st">&quot;exit_dd&quot;</span>) </span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="fu">prop.table</span>(<span class="fu">table</span>(short_fu<span class="sc">$</span>tbi_life))<span class="sc">*</span><span class="dv">100</span></span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[data<span class="sc">$</span>entry_dd <span class="sc">&lt;</span> data<span class="sc">$</span>exit_dd, ] <span class="co"># eliminate those with zero follow-up time</span></span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[<span class="sc">!</span><span class="fu">is.na</span>(data<span class="sc">$</span>alf), ]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>negativefu <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(entry_dd <span class="sc">&gt;</span> exit_dd) <span class="sc">%&gt;%</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;tbi_date&quot;</span>, <span class="st">&quot;tbi_life&quot;</span>, <span class="st">&quot;victimisation_date&quot;</span>, <span class="st">&quot;entry_date&quot;</span>, <span class="st">&quot;exit_date&quot;</span>, <span class="st">&quot;entry_dd&quot;</span>, <span class="st">&quot;exit_dd&quot;</span>) </span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="fu">prop.table</span>(<span class="fu">table</span>(negativefu<span class="sc">$</span>tbi_life))<span class="sc">*</span><span class="dv">100</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>zerofu <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(entry_dd <span class="sc">==</span> exit_dd) <span class="sc">%&gt;%</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;tbi_date&quot;</span>, <span class="st">&quot;tbi_life&quot;</span>, <span class="st">&quot;victimisation_date&quot;</span>, <span class="st">&quot;entry_date&quot;</span>, <span class="st">&quot;exit_date&quot;</span>, <span class="st">&quot;entry_dd&quot;</span>, <span class="st">&quot;exit_dd&quot;</span>)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="fu">prop.table</span>(<span class="fu">table</span>(zerofu<span class="sc">$</span>tbi_life))<span class="sc">*</span><span class="dv">100</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>short_fu <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">as.numeric</span>(<span class="fu">difftime</span>(exit_date, entry_date, <span class="at">units =</span> <span class="st">&quot;days&quot;</span>)) <span class="sc">&lt;</span> <span class="dv">7</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="st">&quot;alf&quot;</span>, <span class="st">&quot;start_date&quot;</span>, <span class="st">&quot;end_date&quot;</span>, <span class="st">&quot;tbi_date&quot;</span>, <span class="st">&quot;tbi_life&quot;</span>, <span class="st">&quot;victimisation_date&quot;</span>, <span class="st">&quot;entry_date&quot;</span>, <span class="st">&quot;exit_date&quot;</span>, <span class="st">&quot;entry_dd&quot;</span>, <span class="st">&quot;exit_dd&quot;</span>) </span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="fu">prop.table</span>(<span class="fu">table</span>(short_fu<span class="sc">$</span>tbi_life))<span class="sc">*</span><span class="dv">100</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[data<span class="sc">$</span>entry_dd <span class="sc">&lt;</span> data<span class="sc">$</span>exit_dd, ] <span class="co"># eliminate those with zero follow-up time</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[<span class="sc">!</span><span class="fu">is.na</span>(data<span class="sc">$</span>alf), ]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
 </section>
+</section>
+<section id="sail-databank-geographical-coverage" class="level1">
+<h1>SAIL Databank Geographical Coverage</h1>
+<div class="cell">
+<details open class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load data</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>gp.data <span class="ot">&lt;-</span> <span class="fu">read.xlsx</span>(<span class="st">&quot;geo-data/gp_coverage.xlsx&quot;</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>my_geojson <span class="ot">&lt;-</span> <span class="fu">read_sf</span>(<span class="st">&quot;geo-data/features.json&quot;</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co"># plot basic geospatial object</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(my_geojson) <span class="sc">+</span> </span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">fill =</span> <span class="st">&quot;white&quot;</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_void</span>()</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co"># merge geospatial and numeric data</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>gp.map <span class="ot">&lt;-</span> my_geojson <span class="sc">%&gt;%</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(gp.data, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;name_en&quot;</span> <span class="ot">=</span> <span class="st">&quot;name_en&quot;</span>))</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="co"># create the basic choropleth map </span><span class="al">###</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(gp.map) <span class="sc">+</span> </span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="fu">aes</span>(<span class="at">fill =</span> sail_percent)) <span class="sc">+</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_void</span>()</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="co"># customise the plot</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(gp.map) <span class="sc">+</span> </span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="fu">aes</span>(<span class="at">fill =</span> sail_percent), <span class="at">linewidth =</span> <span class="fl">0.5</span>, <span class="at">alpha =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_void</span>()<span class="sc">+</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_viridis_c</span>(<span class="at">option =</span> <span class="st">&quot;mako&quot;</span>,</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">trans =</span> <span class="st">&quot;log&quot;</span>, <span class="at">breaks =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">30</span>, <span class="dv">40</span>, <span class="dv">50</span>, <span class="dv">60</span>, <span class="dv">70</span>, <span class="dv">80</span>, <span class="dv">100</span>),</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">&quot;SAIL GP (% by No. of Practices)&quot;</span>,</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">guide =</span> <span class="fu">guide_legend</span>(</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>      <span class="at">keyheight =</span> <span class="fu">unit</span>(<span class="dv">3</span>, <span class="at">units =</span> <span class="st">&quot;mm&quot;</span>),</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>      <span class="at">keywidth =</span> <span class="fu">unit</span>(<span class="dv">10</span>, <span class="at">units =</span> <span class="st">&quot;mm&quot;</span>),</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>      <span class="at">label.position =</span> <span class="st">&quot;bottom&quot;</span>,</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>      <span class="at">title.position =</span> <span class="st">&quot;top&quot;</span>,</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>      <span class="at">nrow =</span> <span class="dv">1</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">&quot;Coverage of General Practices </span><span class="sc">\n</span><span class="st">in SAIL Databank&quot;</span>,</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Map contains public secotr information lcensed unde the Open Government License v3.0.&quot;</span></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">text =</span> <span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">&quot;#22211d&quot;</span>),</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">&quot;#f5f5f2&quot;</span>, <span class="at">color =</span> <span class="cn">NA</span>),</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">&quot;#f5f5f2&quot;</span>, <span class="at">color =</span> <span class="cn">NA</span>),</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">&quot;#f5f5f2&quot;</span>, <span class="at">color =</span> <span class="cn">NA</span>),</span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.title =</span> <span class="fu">element_text</span>(</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>      <span class="at">size =</span> <span class="dv">40</span>, <span class="at">hjust =</span> <span class="fl">0.01</span>, <span class="at">color =</span> <span class="st">&quot;#4e4d47&quot;</span>,</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>      <span class="at">margin =</span> <span class="fu">margin</span>(</span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>        <span class="at">b =</span> <span class="sc">-</span><span class="fl">0.1</span>, <span class="at">t =</span> <span class="fl">0.4</span>, <span class="at">l =</span> <span class="dv">2</span>,</span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>        <span class="at">unit =</span> <span class="st">&quot;cm&quot;</span></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.caption =</span> <span class="fu">element_text</span>(</span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>      <span class="at">size =</span> <span class="dv">6</span>,</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>      <span class="at">color =</span> <span class="st">&quot;#4e4d47&quot;</span>,</span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a>      <span class="at">margin =</span> <span class="fu">margin</span>(</span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>        <span class="at">b =</span> <span class="fl">0.3</span>, <span class="at">r =</span> <span class="sc">-</span><span class="dv">99</span>, <span class="at">t =</span> <span class="fl">0.3</span>,</span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">unit =</span> <span class="st">&quot;cm&quot;</span></span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="fu">c</span>(<span class="fl">0.32</span>, <span class="fl">0.01</span>)</span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a>plot</span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a><span class="fu">pdf</span>(<span class="st">&quot;geo-data/gp_coverage_plot.pdf&quot;</span>, <span class="at">width =</span> <span class="dv">18</span>, <span class="at">height =</span> <span class="dv">13</span>, <span class="at">pointsize =</span> <span class="dv">20</span>)</span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>  plot</span>
+<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a><span class="fu">dev.off</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
 </section>
 <section id="set-the-outcome-self-harm" class="level1">
 <h1>Set the Outcome: Self-Harm</h1>
@@ -3367,7 +3367,7 @@ Note
 </section>
 <section id="descriptive-statistics-self-harm" class="level2">
 <h2 class="anchored" data-anchor-id="descriptive-statistics-self-harm">Descriptive Statistics: Self-Harm</h2>
-<p>Load data and calculate the persons at riskf of self-harm, the number of new cases of self-harm across follow-up and the number of participants exposed to TBI.</p>
+<p>Load data and calculate the persons at risk of self-harm, the number of new cases of self-harm across follow-up and the number of participants exposed to TBI.</p>
 <div class="cell">
 <details open class="code-fold">
 <summary>Code</summary>

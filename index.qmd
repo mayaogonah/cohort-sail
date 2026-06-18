@@ -66,7 +66,6 @@ library(tidyr)
 library(lubridate)
 library(tidyverse)
 library(survival)
-library(SAILDBUtils)
 library(ggplot2)
 library(hrbrthemes)
 library(shiny)
@@ -306,7 +305,7 @@ ggplot(my_geojson) +
 gp.map <- my_geojson %>%
   left_join(gp.data, by = c("name_en" = "name_en"))
 
-# create the basic choropleth map ###
+# create the basic choropleth map
 ggplot(gp.map) + 
   geom_sf(aes(fill = sail_percent)) +
   theme_void()
